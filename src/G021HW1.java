@@ -4,12 +4,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 
 public class G021HW1 {
     public static void main(String[] args) {
@@ -31,6 +26,9 @@ public class G021HW1 {
         //Spark setup
         SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
         JavaSparkContext sc = new JavaSparkContext(conf);
+        //Reduce verbosity
+        sc.setLogLevel("WARN");
+
 
         JavaRDD<String> rawData = sc.textFile(file_path);
 
@@ -41,7 +39,7 @@ public class G021HW1 {
             float x_coord = Float.parseFloat(coordinates[0]);
             float y_coord = Float.parseFloat(coordinates[1]);
 
-            return new Tuple2<>(x_coord,y_coord);
+            return new Tuple2<>(x_coord, y_coord);
         });
 
         inputPoints.repartition(L).cache();
@@ -53,70 +51,51 @@ public class G021HW1 {
             List<Tuple2<Float, Float>> listOfPoints = inputPoints.collect();
 
             long stopwatch_start = System.currentTimeMillis();
-            ExactOutliers(listOfPoints, D, M, K);
+            Methods.ExactOutliers(listOfPoints, D, M, K);
             long stopwatch_stop = System.currentTimeMillis();
             long exec_time = stopwatch_stop-stopwatch_start;
 
-            System.out.println("Running time for ExactOutliers: " + exec_time " millisec");
+            System.out.println("Running time for ExactOutliers: " + exec_time +" millisec");
         }
 
         long stopwatch_start = System.currentTimeMillis();
-        MRApproxOutliers(listOfPoints, D, M, K);
+        //MRApproxOutliers(listOfPoints, D, M, K);
         long stopwatch_stop = System.currentTimeMillis();
         long exec_time = stopwatch_stop-stopwatch_start;
 
-        System.out.println("Running time for MRApproxOutliers: " + exec_time " millisec");
+        System.out.println("Running time for MRApproxOutliers: " + exec_time + " millisec");
 
         sc.stop();
     }
-    class Methods{
+}
 
-        //useless imo, Tuple2 can handle it
-        public class Point{
+class Methods{
+    private static float eucDistance(Tuple2<Float,Float> p1, Tuple2<Float,Float> p2){
+        float x_diff = p1._1 - p2._1;
+        float y_diff = p1._2 - p2._2;
 
-            public float x_coord;
-            public float y_coord;
+        return (float) Math.sqrt(Math.pow(x_diff,2)+Math.pow(y_diff,2));
+    }
+    public static void ExactOutliers(List<Tuple2<Float,Float>> points, float D, int M, int K){
 
-            public Point(float x_coord,float y_coord){
-                this.x_coord = x_coord;
-                this.y_coord = y_coord;
+        ArrayList<Tuple2<Integer,Integer>> outliersPoints = new ArrayList<>();
+
+        for(int i=0;i<points.size();i++){
+            int dNeighborCountI = 0;
+            for(int j=0;j<points.size();j++){
+                if(i==j) continue;
+                if(eucDistance(points.get(i), points.get(j)) <= D) dNeighborCountI++;
             }
-            @Override
-            public String toString() {
-                return "("+this.x_coord + "," + this.y_coord+")";
-            }
+            if(dNeighborCountI <= M)  outliersPoints.add(new Tuple2<>(i,dNeighborCountI));
         }
-        private float EucDistance(Point point_a, Point point_b){
-            float x_diff = point_a.x_coord - point_b.x_coord;
-            float y_diff = point_a.y_coord - point_b.y_coord;
+        
+        //Sorting the list of outliers points by dNeighborCount(|B(p,D)|)
+        outliersPoints.sort((e1, e2) -> e1._2().compareTo(e2._2));
 
-            return (float) Math.sqrt(Math.pow(x_diff,2)-Math.pow(y_diff,2));
-        }
-        public void ExactOutliers(ArrayList<Point> points, float D, int M, int K){
-
-            int[] Outliers= new int[points.size()];
-
-            for(int i=0;i<points.size();i++){
-                for(int j=0;j<points.size();j++){
-                    if(i==j) continue;
-                    if(EucDistance(points.get(i), points.get(j))<D) Outliers[i]+=1;
-                }
-            }
-
-            TreeMap<Integer,Integer> OutliersPoints = new TreeMap<>();
-
-            for(int i=0;i<points.size();i++) {
-                if (Outliers[i] < M) {
-                    OutliersPoints.put(Outliers[i], i);
-                }
-            }
-            System.out.println("Number of ("+D+","+M+")-outliers: "+OutliersPoints.size());
-
-            for(int i = 0; i< (Math.min(OutliersPoints.size(), K)); i++){
-                   int l = OutliersPoints.firstKey();
-                   System.out.println(points.get(OutliersPoints.get(l)));
-                   OutliersPoints.remove(l);
-            }
+        System.out.println("Number of ("+D+","+M+")-outliers: "+outliersPoints.size());
+        for(int i = 0; i< (Math.min(outliersPoints.size(), K)); i++){
+            //The first min(size of outliersPoints list,K) outliers points
+            System.out.println(points.get(outliersPoints.get(i)._1));
         }
     }
 }
