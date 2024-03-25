@@ -25,47 +25,48 @@ public class G021HW1 {
 
         //Spark setup
         SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        //Reduce verbosity
-        sc.setLogLevel("WARN");
+        try (JavaSparkContext sc = new JavaSparkContext(conf)) {
+            //Reduce verbosity
+            sc.setLogLevel("WARN");
 
 
-        JavaRDD<String> rawData = sc.textFile(file_path);
+            JavaRDD<String> rawData = sc.textFile(file_path);
 
-        JavaPairRDD<Float, Float> inputPoints;
+            JavaPairRDD<Float, Float> inputPoints;
 
-        inputPoints = rawData.mapToPair(line -> {
-            String[] coordinates = line.split(",");
-            float x_coord = Float.parseFloat(coordinates[0]);
-            float y_coord = Float.parseFloat(coordinates[1]);
+            inputPoints = rawData.mapToPair(line -> {
+                String[] coordinates = line.split(",");
+                float x_coord = Float.parseFloat(coordinates[0]);
+                float y_coord = Float.parseFloat(coordinates[1]);
 
-            return new Tuple2<>(x_coord, y_coord);
-        });
+                return new Tuple2<>(x_coord, y_coord);
+            });
 
-        inputPoints.repartition(L).cache();
+            inputPoints.repartition(L).cache();
 
-        long num_points = inputPoints.count();
-        System.out.println("Number of input points in the document = " + num_points);
+            long num_points = inputPoints.count();
+            System.out.println("Number of input points in the document = " + num_points);
 
-        if (num_points <= 200000){
-            List<Tuple2<Float, Float>> listOfPoints = inputPoints.collect();
+            if (num_points <= 200000) {
+                List<Tuple2<Float, Float>> listOfPoints = inputPoints.collect();
 
-            long stopwatch_start = System.currentTimeMillis();
-            Methods.ExactOutliers(listOfPoints, D, M, K);
-            long stopwatch_stop = System.currentTimeMillis();
-            long exec_time = stopwatch_stop-stopwatch_start;
+                long stopwatch_start = System.currentTimeMillis();
+                Methods.ExactOutliers(listOfPoints, D, M, K);
+                long stopwatch_stop = System.currentTimeMillis();
+                long exec_time = stopwatch_stop - stopwatch_start;
 
-            System.out.println("Running time for ExactOutliers: " + exec_time +" millisec");
+                System.out.println("Running time for ExactOutliers: " + exec_time + " millisec");
+            }
+
+            long stopwatch_startMR = System.currentTimeMillis();
+            Methods.MRApproxOutliers(inputPoints, D, M, K);
+            long stopwatch_stopMR = System.currentTimeMillis();
+            long exec_time = stopwatch_stopMR - stopwatch_startMR;
+
+            System.out.println("Running time for MRApproxOutliers: " + exec_time + " millisec");
+
+            sc.stop();
         }
-
-        long stopwatch_start = System.currentTimeMillis();
-        //MRApproxOutliers(listOfPoints, D, M, K);
-        long stopwatch_stop = System.currentTimeMillis();
-        long exec_time = stopwatch_stop-stopwatch_start;
-
-        System.out.println("Running time for MRApproxOutliers: " + exec_time + " millisec");
-
-        sc.stop();
     }
 }
 
@@ -97,5 +98,31 @@ class Methods{
             //The first min(size of outliersPoints list,K) outliers points
             System.out.println(points.get(outliersPoints.get(i)._1));
         }
+    }
+
+    public static void MRApproxOutliers(JavaPairRDD<Float, Float> points, float D, int M, int K){
+        //step a
+        float lambda = (float) (D/(2*Math.sqrt(2)));
+
+        JavaPairRDD<Tuple2<Integer, Integer>, Integer> cellCount = points.flatMapToPair(
+                (pair)->{
+                    HashMap<Tuple2<Integer, Integer>, Integer> count = new HashMap<>();
+                    int i = (int) Math.floor(pair._1/lambda);
+                    int j = (int) Math.floor(pair._2/lambda);
+
+                    count.put(new Tuple2<>(i, j), 1+count.getOrDefault(new Tuple2<>(i, j), 0));
+
+                    ArrayList<Tuple2<Tuple2<Integer, Integer>, Integer>> pairsList = new ArrayList<>();
+                    for (Map.Entry<Tuple2<Integer, Integer>, Integer> e : count.entrySet()) {
+                        pairsList.add(new Tuple2<>(e.getKey(), e.getValue()));
+                    }
+
+                    return pairsList.iterator();
+                }
+        )
+                        .groupByKey();
+        System.out.println(cellCount.collect());
+        //step b
+
     }
 }
