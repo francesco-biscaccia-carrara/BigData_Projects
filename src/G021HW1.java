@@ -119,8 +119,7 @@ class Methods{
 
                     return pairsList.iterator();
                 }
-        )
-                        .groupByKey();
+        ).reduceByKey((x,y) -> x+y);
         System.out.println(cellCount.collect());
         //step b
 
