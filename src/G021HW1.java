@@ -4,7 +4,10 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.sources.In;
+import scala.Array;
 import scala.Tuple2;
+import scala.Tuple3;
 
 public class G021HW1 {
     public static void main(String[] args) {
@@ -20,8 +23,7 @@ public class G021HW1 {
         int K = Integer.parseInt(args[3]);
         int L = Integer.parseInt(args[4]);
 
-        System.out.println("File path: " + file_path);
-        System.out.println("D = " + D + " M = " + M + " K = " + K + " L = " + L);
+        System.out.println("File path: " + file_path + "D = " + D + " M = " + M + " K = " + K + " L = " + L);
 
         //Spark setup
         SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
@@ -45,7 +47,7 @@ public class G021HW1 {
             inputPoints.repartition(L).cache();
 
             long num_points = inputPoints.count();
-            System.out.println("Number of input points in the document = " + num_points);
+            System.out.println("Number of points = " + num_points);
 
             if (num_points <= 200000) {
                 List<Tuple2<Float, Float>> listOfPoints = inputPoints.collect();
@@ -77,14 +79,24 @@ class Methods{
 
         return (float) Math.sqrt(Math.pow(x_diff,2)+Math.pow(y_diff,2));
     }
+
+    private static Tuple2<Integer, Integer> determineCell(Tuple2<Float, Float> point, float D) {
+        float lambda = (float) (D/(2*Math.sqrt(2)));
+
+        int i = (int) Math.floor(point._1/lambda);
+        int j = (int) Math.floor(point._2/lambda);
+
+        return new Tuple2<>(i, j);
+    }
+
     public static void ExactOutliers(List<Tuple2<Float,Float>> points, float D, int M, int K){
 
         ArrayList<Tuple2<Integer,Integer>> outliersPoints = new ArrayList<>();
 
         for(int i=0;i<points.size();i++){
             int dNeighborCountI = 0;
-            for(int j=0;j<points.size();j++){
-                if(i==j) continue;
+            for (int j=0;j<points.size();j++){
+                //if(i==j) continue;
                 if(eucDistance(points.get(i), points.get(j)) <= D) dNeighborCountI++;
             }
             if(dNeighborCountI <= M)  outliersPoints.add(new Tuple2<>(i,dNeighborCountI));
@@ -101,27 +113,90 @@ class Methods{
     }
 
     public static void MRApproxOutliers(JavaPairRDD<Float, Float> points, float D, int M, int K){
-        //step a
-        float lambda = (float) (D/(2*Math.sqrt(2)));
 
-        JavaPairRDD<Tuple2<Integer, Integer>, Integer> cellCount = points.flatMapToPair(
-                (pair)->{
-                    HashMap<Tuple2<Integer, Integer>, Integer> count = new HashMap<>();
-                    int i = (int) Math.floor(pair._1/lambda);
-                    int j = (int) Math.floor(pair._2/lambda);
+        final int[] xCentralCellMax = {Integer.MIN_VALUE};
+        final int[] yCentralCellMax = {Integer.MIN_VALUE};
 
-                    count.put(new Tuple2<>(i, j), 1+count.getOrDefault(new Tuple2<>(i, j), 0));
+        // step A
+        JavaPairRDD<Tuple2<Integer, Integer>, Integer> cellCount = points
+            .flatMapToPair(
+                    (pair) -> {
+                        ArrayList<Tuple2<Tuple2<Integer, Integer>, Integer>> pointsPairs = new ArrayList<>();
 
-                    ArrayList<Tuple2<Tuple2<Integer, Integer>, Integer>> pairsList = new ArrayList<>();
-                    for (Map.Entry<Tuple2<Integer, Integer>, Integer> e : count.entrySet()) {
-                        pairsList.add(new Tuple2<>(e.getKey(), e.getValue()));
+                        Tuple2<Integer, Integer> cell = determineCell(pair, D);
+                        if (cell._1>xCentralCellMax[0]) xCentralCellMax[0]=cell._1;
+                        if (cell._2>yCentralCellMax[0]) yCentralCellMax[0]=cell._2;
+                        pointsPairs.add(new Tuple2<>(cell, 1));
+
+                        return pointsPairs.iterator();
+                    }
+            )
+            .reduceByKey((x,y) -> x+y);
+        // step B
+
+        JavaPairRDD<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> regionCounts = cellCount.
+            flatMapToPair(
+                (pair) -> {
+                    ArrayList<Tuple2<Tuple2<Integer, Integer>, Tuple2<Tuple2<Integer, Integer>, Integer>>>
+                        regionPairs = new ArrayList<>();
+
+                    Tuple2<Integer, Integer> cell = pair._1;
+                    for (int i=-3; i<4; i++) {
+                        for (int j=-3; j<4; j++) {
+                            int xCentralCell = cell._1+i;
+                            int yCentralCell = cell._2+j;
+                            if (xCentralCell>=0 && xCentralCell<=xCentralCellMax[0] &&
+                                    yCentralCell>=0 && yCentralCell<=yCentralCellMax[0]) continue;
+                            regionPairs.add(new Tuple2<>(new Tuple2<>(cell._1+i, cell._2+j), pair));
+                        }
                     }
 
-                    return pairsList.iterator();
+                    return regionPairs.iterator();
                 }
-        ).reduceByKey((x,y) -> x+y);
-        System.out.println(cellCount.collect());
-        //step b
+            )
+            .groupByKey()
+            .flatMapToPair(
+                (pair) -> {
+                    ArrayList<Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>> regionNumbers =
+                            new ArrayList<>();
+
+                    Tuple2<Integer, Integer> centralCell = pair._1;
+                    int sum3 = 0;
+                    int sum7 = 0;
+
+                    for (Tuple2<Tuple2<Integer, Integer>, Integer> value : pair._2) {
+                        int xDistance = value._1._1 - centralCell._1;
+                        int yDistance = value._1._2 - centralCell._2;
+
+                        sum7 += value._2;
+                        if (xDistance>=-1 && xDistance<=1 && yDistance>=-1 && yDistance<=1) sum3 += value._2;
+                    }
+
+                    regionNumbers.add(new Tuple2<>(centralCell, new Tuple2<>(sum3, sum7)));
+                    return regionNumbers.iterator();
+                }
+            );
+
+        Map<Tuple2<Integer, Integer>, Integer> cells = cellCount.collectAsMap();
+        Map<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> results = regionCounts.collectAsMap();
+        int sureOutliers = 0, uncertains = 0;
+        for (Tuple2<Integer, Integer> cell : cells.keySet()) {
+            int pointsNumber = cells.get(cell);
+            Tuple2<Integer, Integer> sizes = results.get(cell);
+            if (sizes._2 <= M) sureOutliers += pointsNumber;
+            else if (sizes._1 <= M) uncertains += pointsNumber;
+        }
+        System.out.println("Number of sure outliers = "+ sureOutliers);
+        System.out.println("Number of uncertain points = "+uncertains);
+
+        JavaPairRDD<Integer, Tuple2<Integer, Integer>> tmp = cellCount.mapToPair(
+                (pair) -> new Tuple2<>(pair._2, pair._1)
+        );
+        tmp = tmp.sortByKey(true);
+        List<Tuple2<Integer, Tuple2<Integer, Integer>>> firstElements = tmp.take(K);
+        for (Tuple2<Integer, Tuple2<Integer, Integer>> element : firstElements) {
+            System.out.println("Cell: (" + element._2._1 + "," + element._2._2 + ")   Size = " + element._1);
+        }
 
     }
 }
