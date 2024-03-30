@@ -1,13 +1,10 @@
 import java.util.*;
-import java.util.logging.Level;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
-import org.apache.spark.sql.sources.In;
-import scala.Array;
 import scala.Tuple2;
 
 public class G021HW1 {
@@ -103,9 +100,9 @@ class Methods{
 
         for(int i=0;i<points.size();i++){
             int dNeighborCountI = 0;
-            for (int j=0;j<points.size();j++){
+            for (Tuple2<Float, Float> point : points) {
                 //if(i==j) continue;
-                if(eucDistance(points.get(i), points.get(j)) <= D) dNeighborCountI++;
+                if (eucDistance(points.get(i), point) <= D) dNeighborCountI++;
             }
             if(dNeighborCountI <= M)  outliersPoints.add(new Tuple2<>(i,dNeighborCountI));
         }
@@ -125,7 +122,11 @@ class Methods{
         final int[] xCentralCellMax = {Integer.MIN_VALUE};
         final int[] yCentralCellMax = {Integer.MIN_VALUE};
 
-        // step A
+        /* step A
+        - Map phase: (x,y) (coordinates of point) -> emit ( (i,j), 1 ) (key: identifier of cell)
+        - Reduce phase: for each cell (i,j), L_ij = { values of pairs with key (i,j) } = {1,1,...} ->
+            emit ( (i,j), |L_ij| ); |L_ij| = number of points in cell (i,j)
+         */
         JavaPairRDD<Tuple2<Integer, Integer>, Integer> cellCount = points
             .flatMapToPair(
                     (pair) -> {
@@ -139,9 +140,14 @@ class Methods{
                         return pointsPairs.iterator();
                     }
             )
-            .reduceByKey((x,y) -> x+y);
+            .reduceByKey(Integer::sum);
 
-        // step B
+        /* step B
+        - Map phase: ( (i,j), |L_ij| ) -> emit ( ( (h,k), |L_hk| ), ( (i,j), |L_ij| ) ); (h,k) is the central cell
+            of one of the 7x7 grids R_7(h,k) to which (i,j) belongs
+        - Reduce phase: for every central cell (h,k), L_hk={ pairs ( (i,j), |L_ij| ) belonging to R_7(h,k) } -> emit
+            ( ( (h,k), |L_hk| ), ( |N_3(i,k)|, |N_7(i,k)| ) )
+         */
         Map<Tuple2<Integer, Integer>, Integer> cells = cellCount.collectAsMap();
         JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>> regionCounts = cellCount.
             flatMapToPair(
@@ -150,11 +156,13 @@ class Methods{
                         regionPairs = new ArrayList<>();
 
                     Tuple2<Integer, Integer> cell = pair._1;
+                    // compute all 7x7 grid to which cell belongs
                     for (int i=-3; i<4; i++) {
                         for (int j=-3; j<4; j++) {
                             int xCentralCell = cell._1+i;
                             int yCentralCell = cell._2+j;
                             Tuple2<Integer, Integer> centralCell = new Tuple2<>(xCentralCell, yCentralCell);
+                            // if the computed central cell is not present among cells's keys, skip it
                             if (!cells.containsKey(centralCell)) continue;
                             regionPairs.add(new Tuple2<>(new Tuple2<>(centralCell, cells.get(centralCell)), pair));
                         }
@@ -176,6 +184,8 @@ class Methods{
                     for (Tuple2<Tuple2<Integer, Integer>, Integer> value : pair._2) {
                         sum7 += value._2;
 
+                        /* if a cell and centralCell have a distance of {-1,0,1} on both components, then the cell also
+                        belongs to the 3x3 grid with centralCell in the middle */
                         int xDistance = value._1._1 - centralCell._1;
                         int yDistance = value._1._2 - centralCell._2;
                         if (xDistance>=-1 && xDistance<=1 && yDistance>=-1 && yDistance<=1) sum3 += value._2;
@@ -186,11 +196,9 @@ class Methods{
                 }
             );
 
-        //
         Map<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>> results = regionCounts.collectAsMap();
         int sureOutliers = 0, uncertains = 0;
         for (Tuple2<Tuple2<Integer, Integer>, Integer> cell : results.keySet()) {
-            //int pointsNumber = results.get(cell);
             int pointsNumber = cell._2;
             Tuple2<Integer, Integer> sizes = results.get(cell);
             if (sizes._2 <= M) sureOutliers += pointsNumber;
