@@ -1,9 +1,12 @@
 
 import java.util.*;
+import java.util.logging.Level;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+
 import org.apache.spark.sql.sources.In;
 import scala.Array;
 import scala.Tuple2;
@@ -28,9 +31,8 @@ public class G021HW1 {
         //Spark setup
         SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
-            //Reduce verbosity
+            //Reduce verbosit
             sc.setLogLevel("WARN");
-
 
             JavaRDD<String> rawData = sc.textFile(file_path);
 
@@ -132,12 +134,13 @@ class Methods{
                     }
             )
             .reduceByKey((x,y) -> x+y);
-        // step B
 
-        JavaPairRDD<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> regionCounts = cellCount.
+        // step B
+        Map<Tuple2<Integer, Integer>, Integer> cells = cellCount.collectAsMap();
+        JavaPairRDD<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>> regionCounts = cellCount.
             flatMapToPair(
                 (pair) -> {
-                    ArrayList<Tuple2<Tuple2<Integer, Integer>, Tuple2<Tuple2<Integer, Integer>, Integer>>>
+                    ArrayList<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Tuple2<Integer, Integer>, Integer>>>
                         regionPairs = new ArrayList<>();
 
                     Tuple2<Integer, Integer> cell = pair._1;
@@ -145,9 +148,9 @@ class Methods{
                         for (int j=-3; j<4; j++) {
                             int xCentralCell = cell._1+i;
                             int yCentralCell = cell._2+j;
-                            if (xCentralCell>=0 && xCentralCell<=xCentralCellMax[0] &&
-                                    yCentralCell>=0 && yCentralCell<=yCentralCellMax[0]) continue;
-                            regionPairs.add(new Tuple2<>(new Tuple2<>(cell._1+i, cell._2+j), pair));
+                            Tuple2<Integer, Integer> centralCell = new Tuple2<>(xCentralCell, yCentralCell);
+                            if (!cells.containsKey(centralCell)) continue;
+                            regionPairs.add(new Tuple2<>(new Tuple2<>(centralCell, cells.get(centralCell)), pair));
                         }
                     }
 
@@ -157,31 +160,32 @@ class Methods{
             .groupByKey()
             .flatMapToPair(
                 (pair) -> {
-                    ArrayList<Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>> regionNumbers =
+                    ArrayList<Tuple2<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>>> regionNumbers =
                             new ArrayList<>();
 
-                    Tuple2<Integer, Integer> centralCell = pair._1;
+                    Tuple2<Integer, Integer> centralCell = pair._1._1;
                     int sum3 = 0;
                     int sum7 = 0;
 
                     for (Tuple2<Tuple2<Integer, Integer>, Integer> value : pair._2) {
+                        sum7 += value._2;
+
                         int xDistance = value._1._1 - centralCell._1;
                         int yDistance = value._1._2 - centralCell._2;
-
-                        sum7 += value._2;
                         if (xDistance>=-1 && xDistance<=1 && yDistance>=-1 && yDistance<=1) sum3 += value._2;
                     }
 
-                    regionNumbers.add(new Tuple2<>(centralCell, new Tuple2<>(sum3, sum7)));
+                    regionNumbers.add(new Tuple2<>(pair._1, new Tuple2<>(sum3, sum7)));
                     return regionNumbers.iterator();
                 }
             );
 
-        Map<Tuple2<Integer, Integer>, Integer> cells = cellCount.collectAsMap();
-        Map<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> results = regionCounts.collectAsMap();
+        //
+        Map<Tuple2<Tuple2<Integer, Integer>, Integer>, Tuple2<Integer, Integer>> results = regionCounts.collectAsMap();
         int sureOutliers = 0, uncertains = 0;
-        for (Tuple2<Integer, Integer> cell : cells.keySet()) {
-            int pointsNumber = cells.get(cell);
+        for (Tuple2<Tuple2<Integer, Integer>, Integer> cell : results.keySet()) {
+            //int pointsNumber = results.get(cell);
+            int pointsNumber = cell._2;
             Tuple2<Integer, Integer> sizes = results.get(cell);
             if (sizes._2 <= M) sureOutliers += pointsNumber;
             else if (sizes._1 <= M) uncertains += pointsNumber;
