@@ -1,4 +1,3 @@
-
 import java.util.*;
 import java.util.logging.Level;
 
@@ -10,7 +9,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.sources.In;
 import scala.Array;
 import scala.Tuple2;
-import scala.Tuple3;
 
 public class G021HW1 {
     public static void main(String[] args) {
@@ -19,7 +17,7 @@ public class G021HW1 {
             throw new IllegalArgumentException("USAGE: filepath D M K L");
         }
 
-        //command line parameter saving
+        //Task 3 point 1 - Prints the command-line arguments and stores D,M,K,L into suitable variables.
         String file_path = args[0];
         float D = Float.parseFloat(args[1]);
         int M = Integer.parseInt(args[2]);
@@ -31,13 +29,14 @@ public class G021HW1 {
         //Spark setup
         SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
-            //Reduce verbosit
+            //Reduce verbosity -- does not work somehow
             sc.setLogLevel("WARN");
 
+            //Task 3  point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
             JavaRDD<String> rawData = sc.textFile(file_path);
-
             JavaPairRDD<Float, Float> inputPoints;
 
+            //Conversion of string to a pair of points and storing in a new RDD
             inputPoints = rawData.mapToPair(line -> {
                 String[] coordinates = line.split(",");
                 float x_coord = Float.parseFloat(coordinates[0]);
@@ -48,25 +47,32 @@ public class G021HW1 {
 
             inputPoints.repartition(L).cache();
 
+            //Task 3 point 3 - Prints the total number of points.
             long num_points = inputPoints.count();
             System.out.println("Number of points = " + num_points);
 
+            //Task 3 point 4 - Only if the number of points is at most 200000:
             if (num_points <= 200000) {
+                //Downloads the points into a list called listOfPoints
                 List<Tuple2<Float, Float>> listOfPoints = inputPoints.collect();
 
                 long stopwatch_start = System.currentTimeMillis();
+                //Executes ExactOutliers with parameters listOfPoints,  D,M and K. The execution will print the information specified above.
                 Methods.ExactOutliers(listOfPoints, D, M, K);
                 long stopwatch_stop = System.currentTimeMillis();
                 long exec_time = stopwatch_stop - stopwatch_start;
-
+                //Prints ExactOutliers' running time. The stopwatch variable saves the current time when method starts and finishes
                 System.out.println("Running time for ExactOutliers: " + exec_time + " millisec");
             }
 
+            //Task 3 point 5 - In all cases:
+
             long stopwatch_startMR = System.currentTimeMillis();
+            //Executes MRApproxOutliers with parameters inputPoints, D,M and K. The execution will print the information specified above.
             Methods.MRApproxOutliers(inputPoints, D, M, K);
             long stopwatch_stopMR = System.currentTimeMillis();
             long exec_time = stopwatch_stopMR - stopwatch_startMR;
-
+            //Prints MRApproxOutliers' running time. Again the stopwatch variable saves the current time when method starts and finishes
             System.out.println("Running time for MRApproxOutliers: " + exec_time + " millisec");
 
             sc.stop();
