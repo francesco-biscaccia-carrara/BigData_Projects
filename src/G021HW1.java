@@ -31,10 +31,9 @@ public class G021HW1 {
 
             //Task 3  point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
             JavaRDD<String> rawData = sc.textFile(file_path);
-            JavaPairRDD<Float, Float> inputPoints;
 
             //Conversion of string to a pair of points and storing in a new RDD
-            inputPoints = rawData.mapToPair(line -> {
+            JavaRDD<Tuple2<Float, Float>> inputPoints = rawData.map(line -> {
                 String[] coordinates = line.split(",");
                 float x_coord = Float.parseFloat(coordinates[0]);
                 float y_coord = Float.parseFloat(coordinates[1]);
@@ -59,7 +58,7 @@ public class G021HW1 {
                 long stopwatch_stop = System.currentTimeMillis();
                 long exec_time = stopwatch_stop - stopwatch_start;
                 //Prints ExactOutliers' running time. The stopwatch variable saves the current time when method starts and finishes
-                System.out.println("Running time for ExactOutliers: " + exec_time + " millisec");
+                System.out.println("Running time of ExactOutliers: " + exec_time + " ms");
             }
 
             //Task 3 point 5 - In all cases:
@@ -70,7 +69,7 @@ public class G021HW1 {
             long stopwatch_stopMR = System.currentTimeMillis();
             long exec_time = stopwatch_stopMR - stopwatch_startMR;
             //Prints MRApproxOutliers' running time. Again the stopwatch variable saves the current time when method starts and finishes
-            System.out.println("Running time for MRApproxOutliers: " + exec_time + " millisec");
+            System.out.println("Running time of MRApproxOutliers: " + exec_time + " ms");
 
             sc.stop();
         }
@@ -110,14 +109,14 @@ class Methods{
         //Sorting the list of outliers points by dNeighborCount(|B(p,D)|)
         outliersPoints.sort((e1, e2) -> e1._2().compareTo(e2._2));
 
-        System.out.println("Number of ("+D+","+M+")-outliers: "+outliersPoints.size());
+        System.out.println("Number of outliers = "+outliersPoints.size());
         for(int i = 0; i< (Math.min(outliersPoints.size(), K)); i++){
             //The first min(size of outliersPoints list,K) outliers points
-            System.out.println(points.get(outliersPoints.get(i)._1));
+            System.out.println("Point: ("+points.get(outliersPoints.get(i)._1)+")");
         }
     }
 
-    public static void MRApproxOutliers(JavaPairRDD<Float, Float> points, float D, int M, int K){
+    public static void MRApproxOutliers(JavaRDD<Tuple2<Float, Float>> points, float D, int M, int K){
 
         final int[] xCentralCellMax = {Integer.MIN_VALUE};
         final int[] yCentralCellMax = {Integer.MIN_VALUE};
