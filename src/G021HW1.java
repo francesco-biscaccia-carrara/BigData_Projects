@@ -112,7 +112,7 @@ class Methods{
         System.out.println("Number of outliers = "+outliersPoints.size());
         for(int i = 0; i< (Math.min(outliersPoints.size(), K)); i++){
             //The first min(size of outliersPoints list,K) outliers points
-            System.out.println("Point: ("+points.get(outliersPoints.get(i)._1)+")");
+            System.out.println("Point: "+points.get(outliersPoints.get(i)._1));
         }
     }
 
