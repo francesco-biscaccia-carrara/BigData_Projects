@@ -22,7 +22,7 @@ public class G021HW1 {
         int K = Integer.parseInt(args[3]);
         int L = Integer.parseInt(args[4]);
 
-        System.out.println("File path: " + file_path + "D = " + D + " M = " + M + " K = " + K + " L = " + L);
+        System.out.println(file_path + " D=" +D + " M=" + M + " K=" + K + " L=" + L);
 
         //Spark setup
         SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
@@ -96,14 +96,13 @@ class Methods{
 
     public static void ExactOutliers(List<Tuple2<Float,Float>> points, float D, int M, int K){
 
-        ArrayList<Tuple2<Integer,Integer>> outliersPoints = new ArrayList<>();
+        ArrayList<Tuple2<Integer,Long>> outliersPoints = new ArrayList<>();
 
         for(int i=0;i<points.size();i++){
-            int dNeighborCountI = 0;
-            for (Tuple2<Float, Float> point : points) {
-                //if(i==j) continue;
+            long dNeighborCountI = 0L;
+            for (Tuple2<Float, Float> point : points)
                 if (eucDistance(points.get(i), point) <= D) dNeighborCountI++;
-            }
+
             if(dNeighborCountI <= M)  outliersPoints.add(new Tuple2<>(i,dNeighborCountI));
         }
         
@@ -112,20 +111,25 @@ class Methods{
 
         System.out.println("Number of outliers = "+outliersPoints.size());
         for(int i = 0; i< (Math.min(outliersPoints.size(), K)); i++){
-            //The first min(size of outliersPoints list,K) outliers points
+            //Printing the first min(size of outliersPoints list,K) outliers points
             System.out.println("Point: "+points.get(outliersPoints.get(i)._1));
         }
     }
 
     public static void MRApproxOutliers(JavaRDD<Tuple2<Float, Float>> points, float D, int M, int K) {
-        //step a
-
+        /*  Step A
+            - Map phase: (x,y) (coordinates of point) -> emit ( (i,j), 1 ) (key: identifier of cell)
+            - Reduce phase: for each cell (i,j), L_ij = { values of pairs with key (i,j) } = {1,1,...} ->
+            emit ( (i,j), |L_ij| ); |L_ij| = number of points in cell (i,j)
+         */
         JavaPairRDD<Tuple2<Integer, Integer>, Long> cellCount = points.mapToPair(
                 (pair) -> new Tuple2<>(determineCell(pair, D), 1L)
         ).reduceByKey(Long::sum);
 
-
-        //step b -- Iterative algorithm
+        /*  Step B
+            Collect the RDD as a Map and use a sequential algorithm to process the N3 and N7 values of each
+            cell.
+         */
         Map<Tuple2<Integer, Integer>, Long> tmpMap = cellCount.collectAsMap();
         HashMap<Tuple2<Integer, Integer>, Tuple3<Long, Long, Long>> pairSizeN3N7 = new HashMap<>();
 
@@ -157,12 +161,12 @@ class Methods{
         System.out.println("Number of sure outliers = " + outliers);
         System.out.println("Number of uncertain points = " + uncertains);
 
-        JavaPairRDD<Long, Tuple2<Integer, Integer>> ordercell = cellCount.mapToPair(
+        //Map phase: ((i,j),|size of cell ij|) -> emit (|size of cell ij|, (i,j))
+        JavaPairRDD<Long, Tuple2<Integer, Integer>> sortedCell = cellCount.mapToPair(
                 (pair) -> new Tuple2<>(pair._2, new Tuple2<>(pair._1._1(), pair._1._2()))
         );
 
-        List<Tuple2<Long, Tuple2<Integer, Integer>>> firstKElements = ordercell.sortByKey().take(K);
-        for (Tuple2<Long, Tuple2<Integer, Integer>> e : firstKElements) {
+        for (Tuple2<Long, Tuple2<Integer, Integer>> e : sortedCell.sortByKey().take(K)) {
             System.out.println("Cell: " + e._2 + " Size=" + e._1);
         }
     }
