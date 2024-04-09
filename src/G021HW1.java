@@ -1,4 +1,6 @@
 import java.util.*;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -25,7 +27,10 @@ public class G021HW1 {
         System.out.println(file_path + " D=" +D + " M=" + M + " K=" + K + " L=" + L);
 
         //Spark setup
-        SparkConf conf = new SparkConf().setAppName("Outlier Detection").setMaster("local[*]");
+
+        Logger.getLogger("org").setLevel(Level.OFF);
+        Logger.getLogger("akka").setLevel(Level.OFF);
+        SparkConf conf = new SparkConf(true).setAppName("Outlier Detection").setMaster("local[*]");
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
             //Reduce verbosity -- does not work somehow
             sc.setLogLevel("WARN");
