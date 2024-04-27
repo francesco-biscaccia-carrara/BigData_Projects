@@ -12,7 +12,51 @@ import scala.Tuple3;
 
 public class G021HW2 {
     public static void main(String[] args) {
+        //Commandline check
+        if(args.length != 5){
+            throw new IllegalArgumentException("USAGE: filepath D M K L");
+        }
 
+        //Task 3 point 1 - Prints the command-line arguments and stores D,M,K,L into suitable variables.
+        String file_path = args[0];
+        float D = Float.parseFloat(args[1]);
+        int M = Integer.parseInt(args[2]);
+        int K = Integer.parseInt(args[3]);
+        int L = Integer.parseInt(args[4]);
+
+        System.out.println(file_path + " D=" +D + " M=" + M + " K=" + K + " L=" + L);
+
+        //Spark setup
+
+        Logger.getLogger("org").setLevel(Level.OFF);
+        Logger.getLogger("akka").setLevel(Level.OFF);
+        SparkConf conf = new SparkConf(true).setAppName("Outlier Detection").setMaster("local[*]");
+        try (JavaSparkContext sc = new JavaSparkContext(conf)) {
+            //Reduce verbosity -- does not work somehow
+            sc.setLogLevel("WARN");
+
+            //Task 3 point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
+            JavaRDD<String> rawData = sc.textFile(file_path);
+
+            //Conversion of string to a pair of points and storing in a new RDD
+            JavaRDD<Tuple2<Float, Float>> inputPoints = rawData.map(line -> {
+                String[] coordinates = line.split(",");
+                float x_coord = Float.parseFloat(coordinates[0]);
+                float y_coord = Float.parseFloat(coordinates[1]);
+
+                return new Tuple2<>(x_coord, y_coord);
+            });
+
+            inputPoints.repartition(L).cache();
+
+            //Task 3 point 3 - Prints the total number of points.
+            long num_points = inputPoints.count();
+            System.out.println("Number of points = " + num_points);
+
+            // execute algorithms
+
+            sc.stop();
+        }
     }
 }
 
