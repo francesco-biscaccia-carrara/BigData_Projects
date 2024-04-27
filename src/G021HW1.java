@@ -60,7 +60,7 @@ public class G021HW1 {
 
                 long stopwatch_start = System.currentTimeMillis();
                 //Executes ExactOutliers with parameters listOfPoints,  D,M and K. The execution will print the information specified above.
-                Methods.ExactOutliers(listOfPoints, D, M, K);
+                MethodsHW1.ExactOutliers(listOfPoints, D, M, K);
                 long stopwatch_stop = System.currentTimeMillis();
                 long exec_time = stopwatch_stop - stopwatch_start;
                 //Prints ExactOutliers' running time. The stopwatch variable saves the current time when method starts and finishes
@@ -71,7 +71,7 @@ public class G021HW1 {
 
             long stopwatch_startMR = System.currentTimeMillis();
             //Executes MRApproxOutliers with parameters inputPoints, D,M and K. The execution will print the information specified above.
-            Methods.MRApproxOutliers(inputPoints, D, M, K);
+            MethodsHW1.MRApproxOutliers(inputPoints, D, M, K);
             long stopwatch_stopMR = System.currentTimeMillis();
             long exec_time = stopwatch_stopMR - stopwatch_startMR;
             //Prints MRApproxOutliers' running time. Again the stopwatch variable saves the current time when method starts and finishes
@@ -82,7 +82,7 @@ public class G021HW1 {
     }
 }
 
-class Methods{
+class MethodsHW1 {
     private static float eucDistance(Tuple2<Float,Float> p1, Tuple2<Float,Float> p2){
         float x_diff = p1._1 - p2._1;
         float y_diff = p1._2 - p2._2;
