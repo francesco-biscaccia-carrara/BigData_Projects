@@ -13,24 +13,23 @@ import scala.Tuple3;
 public class G021HW2 {
     public static void main(String[] args) {
         //Commandline check
-        if(args.length != 5){
-            throw new IllegalArgumentException("USAGE: filepath D M K L");
+        if(args.length != 4){
+            throw new IllegalArgumentException("USAGE: filepath M K L");
         }
 
-        //Task 3 point 1 - Prints the command-line arguments and stores D,M,K,L into suitable variables.
+        //Task 3 point 1 - Prints the command-line arguments and stores M,K,L into suitable variables.
         String file_path = args[0];
-        float D = Float.parseFloat(args[1]);
-        int M = Integer.parseInt(args[2]);
-        int K = Integer.parseInt(args[3]);
-        int L = Integer.parseInt(args[4]);
+        int M = Integer.parseInt(args[1]);
+        int K = Integer.parseInt(args[2]);
+        int L = Integer.parseInt(args[3]);
 
-        System.out.println(file_path + " D=" +D + " M=" + M + " K=" + K + " L=" + L);
+        System.out.println(file_path + " M=" + M + " K=" + K + " L=" + L);
 
         //Spark setup
 
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
-        SparkConf conf = new SparkConf(true).setAppName("Outlier Detection").setMaster("local[*]");
+        SparkConf conf = new SparkConf(true).setAppName("Outlier Detection V2").setMaster("local[*]");
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
             //Reduce verbosity -- does not work somehow
             sc.setLogLevel("WARN");
@@ -53,7 +52,11 @@ public class G021HW2 {
             long num_points = inputPoints.count();
             System.out.println("Number of points = " + num_points);
 
-            // execute algorithms
+            //Executes MRFFT with parameters inputPoints and K and stores the returned radius into a float D.
+            float D= 1.0F; //= MethodsHW2.MRFFT(inputPoints,K);
+
+            //Executes MRApproxOutliers, modified as described above, with parameters inputPoints, D,M.
+            MethodsHW2.MRApproxOutliers(inputPoints, D,M);
 
             sc.stop();
         }
@@ -122,5 +125,38 @@ class MethodsHW2{
         }
         System.out.println("Number of sure outliers = " + outliers);
         System.out.println("Number of uncertain points = " + uncertains);
+    }
+
+    private static int findFarthestPoint(ArrayList<Tuple2<Float,Float>> points,ArrayList<Tuple2<Float,Float>> centers){
+        //TODO: I'm so bad to explain my code, please help me! :<3
+        //Tmp ArrayList which stores the index of each point in points and the distance from the closest center in centers
+        ArrayList<Tuple2<Integer,Float>> indexPointDS = new ArrayList<>();
+
+        for(int i = 0; i < points.size(); i++){
+            float distFromS = Float.MAX_VALUE; //Min distance from point points[i] to the set of centers S
+            for(Tuple2<Float,Float> center: centers)
+                if (eucDistance(points.get(i), center) < distFromS) distFromS = eucDistance(points.get(i), center);
+            indexPointDS.add(new Tuple2<>(i,distFromS));
+        }
+
+        //Return the index of the farthest point from the set of center S
+        return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2))._1;
+    }
+
+    private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
+        ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
+        //TODO: maybe another policy?
+        centers.add(points.remove(0));
+
+        for(int i=1;i<K;i++){
+            int newCenterIndex = findFarthestPoint(points,centers);
+            centers.add(points.remove(newCenterIndex));
+        }
+
+        return centers;
+    }
+
+    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, float K){
+        return 0;
     }
 }
