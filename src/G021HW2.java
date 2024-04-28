@@ -53,7 +53,7 @@ public class G021HW2 {
             System.out.println("Number of points = " + num_points);
 
             //Executes MRFFT with parameters inputPoints and K and stores the returned radius into a float D.
-            float D= 1.0F; //= MethodsHW2.MRFFT(inputPoints,K);
+            float D = MethodsHW2.MRFFT(inputPoints,K);
 
             //Executes MRApproxOutliers, modified as described above, with parameters inputPoints, D,M.
             MethodsHW2.MRApproxOutliers(inputPoints, D,M);
@@ -143,7 +143,7 @@ class MethodsHW2{
         return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2))._1;
     }
 
-    private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
+    public static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
         //TODO: maybe another policy?
         centers.add(points.remove(0));
@@ -156,7 +156,40 @@ class MethodsHW2{
         return centers;
     }
 
-    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, float K){
-        return 0;
+    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K){
+        Random rnd = new Random();
+        int l = (int) Math.floor(Math.sqrt((double) points.count() /K));
+
+        // Round 1
+        JavaPairRDD<Integer,Iterable<Tuple2<Float,Float>>> pointsPartition = points.mapToPair(
+                //TODO: Maybe deterministic?
+                (point)-> new Tuple2<>(rnd.nextInt(l),point)
+        ).groupByKey();
+
+        JavaPairRDD<Integer,ArrayList<Tuple2<Float,Float>>> smallCoreset = pointsPartition.mapToPair(
+                (list) ->{
+                    ArrayList<Tuple2<Float,Float>> tmp = new ArrayList<>();
+                    for(Tuple2<Float,Float>e : list._2) tmp.add(e);
+                    return new Tuple2<>(0,SequentialFFT(tmp,K));
+        });
+
+        //Round 2
+        ArrayList<Tuple2<Float,Float>> coreset = new ArrayList<>();
+        for (ArrayList<Tuple2<Float, Float>> coresetI : smallCoreset.groupByKey().collect().get(0)._2) {
+            coreset.addAll(coresetI);
+        }
+
+        ArrayList<Tuple2<Float,Float>> kCenters = SequentialFFT(coreset,K);
+
+        //Round 3
+        JavaRDD<Float> radiusCluster = points.map(
+                (point) -> {
+                        float radius = Float.MAX_VALUE;
+                        for(Tuple2<Float,Float> center: kCenters)
+                            if (eucDistance(point, center) < radius) radius = eucDistance(point, center);
+                        return radius;
+                }
+        );
+        return Collections.max(radiusCluster.collect());
     }
 }
