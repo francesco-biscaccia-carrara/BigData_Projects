@@ -143,7 +143,7 @@ class MethodsHW2{
         return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2))._1;
     }
 
-    public static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
+    private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
         //TODO: maybe another policy?
         centers.add(points.remove(0));
