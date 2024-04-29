@@ -145,7 +145,6 @@ class MethodsHW2{
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
-        //TODO: maybe another policy?
         centers.add(points.remove(0));
 
         for(int i=1;i<K;i++){
@@ -157,12 +156,34 @@ class MethodsHW2{
     }
 
     public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K){
-        Random rnd = new Random();
+
+        ArrayList<Tuple2<Float,Float>> kCenters = points.mapPartitionsToPair((partition)->{
+            ArrayList<Tuple2<Integer,ArrayList<Tuple2<Float,Float>>>> rt = new ArrayList<>();
+            ArrayList<Tuple2<Float,Float>> tmp = new ArrayList<>();
+            partition.forEachRemaining(tmp::add);
+            rt.add(new Tuple2<>(0,SequentialFFT(tmp,K)));
+            return rt.iterator();
+        }).groupByKey()
+            .mapValues((list)->{
+                    ArrayList<Tuple2<Float,Float>> tmp = new ArrayList<>();
+                    list.forEach(tmp::addAll);
+                    return SequentialFFT(tmp,K);
+        }).collect().get(0)._2;
+
+        return points.map(
+                (point) -> {
+                    float radius = Float.MAX_VALUE;
+                    for(Tuple2<Float,Float> center: kCenters)
+                        if (eucDistance(point, center) < radius) radius = eucDistance(point, center);
+                    return radius;
+                }
+        ).reduce(Math::max);
+
+        /*Random rnd = new Random();
         int l = (int) Math.floor(Math.sqrt((double) points.count() /K));
 
         // Round 1
         JavaPairRDD<Integer,Iterable<Tuple2<Float,Float>>> pointsPartition = points.mapToPair(
-                //TODO: Maybe deterministic?
                 (point)-> new Tuple2<>(rnd.nextInt(l),point)
         ).groupByKey();
 
@@ -190,6 +211,6 @@ class MethodsHW2{
                         return radius;
                 }
         );
-        return Collections.max(radiusCluster.collect());
+        return Collections.max(radiusCluster.collect());*/
     }
 }
