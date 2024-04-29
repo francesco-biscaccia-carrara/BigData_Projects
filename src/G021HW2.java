@@ -127,7 +127,7 @@ class MethodsHW2{
         System.out.println("Number of uncertain points = " + uncertains);
     }
 
-    private static int findFarthestPoint(ArrayList<Tuple2<Float,Float>> points,ArrayList<Tuple2<Float,Float>> centers){
+    private static Tuple2<Integer,Float> findFarthestPoint(ArrayList<Tuple2<Float,Float>> points,ArrayList<Tuple2<Float,Float>> centers){
         //TODO: I'm so bad to explain my code, please help me! :<3
         //Tmp ArrayList which stores the index of each point in points and the distance from the closest center in centers
         ArrayList<Tuple2<Integer,Float>> indexPointDS = new ArrayList<>();
@@ -139,8 +139,9 @@ class MethodsHW2{
             indexPointDS.add(new Tuple2<>(i,distFromS));
         }
 
-        //Return the index of the farthest point from the set of center S
-        return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2))._1;
+        return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2));
+        //._1 --> index (in the ArrayList points) of the farthest point from the set of center S
+        //._2 --> distance of the farthest point from the set of center S
     }
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
@@ -148,7 +149,7 @@ class MethodsHW2{
         centers.add(points.remove(0));
 
         for(int i=1;i<K;i++){
-            int newCenterIndex = findFarthestPoint(points,centers);
+            int newCenterIndex = findFarthestPoint(points,centers)._1;
             centers.add(points.remove(newCenterIndex));
         }
 
@@ -157,27 +158,21 @@ class MethodsHW2{
 
     public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K){
 
-        ArrayList<Tuple2<Float,Float>> kCenters = points.mapPartitionsToPair((partition)->{
-            ArrayList<Tuple2<Integer,ArrayList<Tuple2<Float,Float>>>> rt = new ArrayList<>();
-            ArrayList<Tuple2<Float,Float>> tmp = new ArrayList<>();
-            partition.forEachRemaining(tmp::add);
-            rt.add(new Tuple2<>(0,SequentialFFT(tmp,K)));
-            return rt.iterator();
-        }).groupByKey()
-            .mapValues((list)->{
-                    ArrayList<Tuple2<Float,Float>> tmp = new ArrayList<>();
-                    list.forEach(tmp::addAll);
-                    return SequentialFFT(tmp,K);
-        }).collect().get(0)._2;
+        List<Tuple2<Float,Float>> coreset = points.mapPartitions(
+                (partition) -> {
+                    ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
+                    partition.forEachRemaining(partitionPoints::add);
+
+                    return SequentialFFT(partitionPoints,K).iterator();
+                }
+        ).collect();
+
+        ArrayList<Tuple2<Float,Float>> kCenters = SequentialFFT(new ArrayList<>(coreset),K);
 
         return points.map(
-                (point) -> {
-                    float radius = Float.MAX_VALUE;
-                    for(Tuple2<Float,Float> center: kCenters)
-                        if (eucDistance(point, center) < radius) radius = eucDistance(point, center);
-                    return radius;
-                }
-        ).reduce(Math::max);
+                    (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters)._2
+                ).reduce(Float::max);
+
 
         /*Random rnd = new Random();
         int l = (int) Math.floor(Math.sqrt((double) points.count() /K));
@@ -186,6 +181,7 @@ class MethodsHW2{
         JavaPairRDD<Integer,Iterable<Tuple2<Float,Float>>> pointsPartition = points.mapToPair(
                 (point)-> new Tuple2<>(rnd.nextInt(l),point)
         ).groupByKey();
+        ----Up there all wrong for sure---
 
         JavaPairRDD<Integer,ArrayList<Tuple2<Float,Float>>> smallCoreset = pointsPartition.mapToPair(
                 (list) ->{
