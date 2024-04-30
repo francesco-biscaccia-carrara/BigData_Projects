@@ -7,6 +7,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 import scala.Tuple3;
 
@@ -53,7 +54,7 @@ public class G021HW2 {
             System.out.println("Number of points = " + num_points);
 
             //Executes MRFFT with parameters inputPoints and K and stores the returned radius into a float D.
-            float D = MethodsHW2.MRFFT(inputPoints,K);
+            float D = MethodsHW2.MRFFT(inputPoints,K,sc);
 
             //Executes MRApproxOutliers, modified as described above, with parameters inputPoints, D,M.
             MethodsHW2.MRApproxOutliers(inputPoints, D,M);
@@ -81,20 +82,11 @@ class MethodsHW2{
     }
 
     public static void MRApproxOutliers(JavaRDD<Tuple2<Float, Float>> points, float D, int M) {
-        /*  Step A
-            - Map phase: (x,y) (coordinates of point) -> emit ( (i,j), 1 ) (key: identifier of cell)
-            - Reduce phase: for each cell (i,j), L_ij = { values of pairs with key (i,j) } = {1,1,...} ->
-            emit ( (i,j), |L_ij| ); |L_ij| = number of points in cell (i,j)
-         */
+
         JavaPairRDD<Tuple2<Integer, Integer>, Long> cellCount = points.mapToPair(
                 (pair) -> new Tuple2<>(determineCell(pair, D), 1L)
         ).reduceByKey(Long::sum);
 
-
-        /*  Step B
-            Collect the RDD as a Map and use a sequential algorithm to process the N3 and N7 values of each
-            cell.
-         */
         Map<Tuple2<Integer, Integer>, Long> tmpMap = cellCount.collectAsMap();
         HashMap<Tuple2<Integer, Integer>, Tuple3<Long, Long, Long>> pairSizeN3N7 = new HashMap<>();
 
@@ -102,16 +94,14 @@ class MethodsHW2{
             Tuple2<Tuple2<Integer,Integer>,Long> pair =  new Tuple2<>(e.getKey(),e.getValue());
 
             pairSizeN3N7.put(pair._1, new Tuple3<>(pair._2, 0L, 0L));
-            //Notice: this for count itself too
+
             for (int i = -3; i < 4; i++) {
                 for (int j = -3; j < 4; j++) {
                     if (tmpMap.get(new Tuple2<>(pair._1._1 + i, pair._1._2 + j)) != null) {
                         long cellIJCount = tmpMap.get(new Tuple2<>(pair._1._1 + i, pair._1._2 + j));
                         if ((i < -1 || i > 1) || (j < -1 || j > 1))
-                            //In region C7
                             pairSizeN3N7.put(pair._1, new Tuple3<>(pair._2, pairSizeN3N7.get(pair._1)._2(), pairSizeN3N7.get(pair._1)._3() + cellIJCount));
                         else
-                            //In region C3
                             pairSizeN3N7.put(pair._1, new Tuple3<>(pair._2, pairSizeN3N7.get(pair._1)._2() + cellIJCount, pairSizeN3N7.get(pair._1)._3() + cellIJCount));
                     }
                 }
@@ -156,7 +146,7 @@ class MethodsHW2{
         return centers;
     }
 
-    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K){
+    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K, JavaSparkContext sc){
 
         List<Tuple2<Float,Float>> coreset = points.mapPartitions(
                 (partition) -> {
@@ -167,46 +157,10 @@ class MethodsHW2{
                 }
         ).collect();
 
-        ArrayList<Tuple2<Float,Float>> kCenters = SequentialFFT(new ArrayList<>(coreset),K);
+        Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coreset),K));
 
         return points.map(
-                    (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters)._2
+                    (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters.value())._2
                 ).reduce(Float::max);
-
-
-        /*Random rnd = new Random();
-        int l = (int) Math.floor(Math.sqrt((double) points.count() /K));
-
-        // Round 1
-        JavaPairRDD<Integer,Iterable<Tuple2<Float,Float>>> pointsPartition = points.mapToPair(
-                (point)-> new Tuple2<>(rnd.nextInt(l),point)
-        ).groupByKey();
-        ----Up there all wrong for sure---
-
-        JavaPairRDD<Integer,ArrayList<Tuple2<Float,Float>>> smallCoreset = pointsPartition.mapToPair(
-                (list) ->{
-                    ArrayList<Tuple2<Float,Float>> tmp = new ArrayList<>();
-                    for(Tuple2<Float,Float>e : list._2) tmp.add(e);
-                    return new Tuple2<>(0,SequentialFFT(tmp,K));
-        });
-
-        //Round 2
-        ArrayList<Tuple2<Float,Float>> coreset = new ArrayList<>();
-        for (ArrayList<Tuple2<Float, Float>> coresetI : smallCoreset.groupByKey().collect().get(0)._2) {
-            coreset.addAll(coresetI);
-        }
-
-        ArrayList<Tuple2<Float,Float>> kCenters = SequentialFFT(coreset,K);
-
-        //Round 3
-        JavaRDD<Float> radiusCluster = points.map(
-                (point) -> {
-                        float radius = Float.MAX_VALUE;
-                        for(Tuple2<Float,Float> center: kCenters)
-                            if (eucDistance(point, center) < radius) radius = eucDistance(point, center);
-                        return radius;
-                }
-        );
-        return Collections.max(radiusCluster.collect());*/
     }
 }
