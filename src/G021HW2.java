@@ -148,6 +148,9 @@ class MethodsHW2{
 
     public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K, JavaSparkContext sc){
 
+
+        long stopwatch_startRound1 = System.currentTimeMillis();
+        //Round 1
         List<Tuple2<Float,Float>> coreset = points.mapPartitions(
                 (partition) -> {
                     ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
@@ -156,11 +159,22 @@ class MethodsHW2{
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
         ).collect();
+        System.out.println("Running time of Round 1 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
+
+        long stopwatch_startRound2= System.currentTimeMillis();
+        //Round 2
         Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coreset),K));
+        System.out.println("Running time of Round 2 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound2) + " ms");
 
-        return points.map(
+
+        long stopwatch_startRound3 = System.currentTimeMillis();
+        //Round 3
+        float radius = points.map(
                     (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters.value())._2
                 ).reduce(Float::max);
+        System.out.println("Running time of Round 3 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
+
+        return radius;
     }
 }
