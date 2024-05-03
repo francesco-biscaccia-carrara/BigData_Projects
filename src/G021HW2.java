@@ -151,20 +151,20 @@ class MethodsHW2{
 
         long stopwatch_startRound1 = System.currentTimeMillis();
         //Round 1
-        List<Tuple2<Float,Float>> coreset = points.mapPartitions(
+        JavaRDD<Tuple2<Float,Float>> coresets = points.mapPartitions(
                 (partition) -> {
                     ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
                     partition.forEachRemaining(partitionPoints::add);
 
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
-        ).collect();
+        ); //.collect(); TODO: ?? we have to wait Pietra's answer
         System.out.println("Running time of Round 1 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
 
         long stopwatch_startRound2= System.currentTimeMillis();
         //Round 2
-        Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coreset),K));
+        Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coresets.collect()),K));
         System.out.println("Running time of Round 2 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound2) + " ms");
 
 
