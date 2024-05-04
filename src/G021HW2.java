@@ -30,7 +30,10 @@ public class G021HW2 {
 
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
-        SparkConf conf = new SparkConf(true).setAppName("Outlier Detection V2").setMaster("local[*]");
+        SparkConf conf = new SparkConf(true)
+                .setAppName("Outlier Detection V2")
+                .setMaster("local[*]")
+                .set("spark.locality.wait", "0s");
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
             //Reduce verbosity -- does not work somehow
             sc.setLogLevel("WARN");
@@ -55,9 +58,15 @@ public class G021HW2 {
 
             //Executes MRFFT with parameters inputPoints and K and stores the returned radius into a float D.
             float D = MethodsHW2.MRFFT(inputPoints,K,sc);
+            System.out.println("Radius = "+ D);
 
+            long stopwatch_startMR = System.currentTimeMillis();
             //Executes MRApproxOutliers, modified as described above, with parameters inputPoints, D,M.
             MethodsHW2.MRApproxOutliers(inputPoints, D,M);
+            long stopwatch_stopMR = System.currentTimeMillis();
+            long exec_time = stopwatch_stopMR - stopwatch_startMR;
+            //Prints MRApproxOutliers' running time. Again the stopwatch variable saves the current time when method starts and finishes
+            System.out.println("Running time of MRApproxOutliers = " + exec_time + " ms");
 
             sc.stop();
         }
@@ -148,7 +157,6 @@ class MethodsHW2{
 
     public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K, JavaSparkContext sc){
 
-
         long stopwatch_startRound1 = System.currentTimeMillis();
         //Round 1
         JavaRDD<Tuple2<Float,Float>> coresets = points.mapPartitions(
@@ -159,13 +167,13 @@ class MethodsHW2{
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
         ); //.collect(); TODO: ?? we have to wait Pietra's answer
-        System.out.println("Running time of Round 1 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
+        System.out.println("Running time of MRFFT Round 1 = " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
 
         long stopwatch_startRound2= System.currentTimeMillis();
         //Round 2
         Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coresets.collect()),K));
-        System.out.println("Running time of Round 2 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound2) + " ms");
+        System.out.println("Running time of MRFFT Round 2 = " + (System.currentTimeMillis() - stopwatch_startRound2) + " ms");
 
 
         long stopwatch_startRound3 = System.currentTimeMillis();
@@ -173,7 +181,7 @@ class MethodsHW2{
         float radius = points.map(
                     (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters.value())._2
                 ).reduce(Float::max);
-        System.out.println("Running time of Round 3 MRFFT: " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
+        System.out.println("Running time of MRFFT Round 3 = " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
 
         return radius;
     }
