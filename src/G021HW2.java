@@ -127,20 +127,23 @@ class MethodsHW2{
     }
 
     private static Tuple2<Integer,Float> findFarthestPoint(ArrayList<Tuple2<Float,Float>> points,ArrayList<Tuple2<Float,Float>> centers){
-        //TODO: I'm so bad to explain my code, please help me! :<3
-        //Tmp ArrayList which stores the index of each point in points and the distance from the closest center in centers
+        //ArrayList to store tuples (i,d) -> i: index of each point in points; d: distance between point with index i
+        // and closest center in centers
         ArrayList<Tuple2<Integer,Float>> indexPointDS = new ArrayList<>();
 
+        // for every point, look for the closest center to such point
         for(int i = 0; i < points.size(); i++){
-            float distFromS = Float.MAX_VALUE; //Min distance from point points[i] to the set of centers S
+            float distFromS = Float.MAX_VALUE; //min distance from point points[i] to the set of centers S
+            // iterate through all centers and store distance of closest center to current point
             for(Tuple2<Float,Float> center: centers)
                 if (eucDistance(points.get(i), center) < distFromS) distFromS = eucDistance(points.get(i), center);
             indexPointDS.add(new Tuple2<>(i,distFromS));
         }
 
+        // return index of center with biggest distance from points and corresponding distance
         return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2));
-        //._1 --> index (in the ArrayList points) of the farthest point from the set of center S
-        //._2 --> distance of the farthest point from the set of center S
+        //._1 --> index (in the ArrayList points) of the farthest center from the set of points
+        //._2 --> distance of the farthest center from the set of points
     }
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
