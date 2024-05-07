@@ -8,6 +8,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 import scala.Tuple3;
 
@@ -124,33 +125,33 @@ class MethodsHW2{
         System.out.println("Number of uncertain points = " + uncertains);
     }
 
-    private static Tuple2<Integer,Float> findFarthestPoint(ArrayList<Tuple2<Float,Float>> points,ArrayList<Tuple2<Float,Float>> centers){
-        //ArrayList to store tuples (i,d) -> i: index of each point in points; d: distance between point with index i
-        // and closest center in centers
-        ArrayList<Tuple2<Integer,Float>> indexPointDS = new ArrayList<>();
+    private static Float findRadius(Tuple2<Float,Float> point,ArrayList<Tuple2<Float,Float>> centers){
+        float distFromS = Float.MAX_VALUE;
 
-        // for every point, look for the closest center to such point
-        for(int i = 0; i < points.size(); i++){
-            float distFromS = Float.MAX_VALUE; //min distance from point points[i] to the set of centers S
-            // iterate through all centers and store distance of closest center to current point
-            for(Tuple2<Float,Float> center: centers)
-                if (eucDistance(points.get(i), center) < distFromS) distFromS = eucDistance(points.get(i), center);
-            indexPointDS.add(new Tuple2<>(i,distFromS));
-        }
+        for(Tuple2<Float,Float> center: centers)
+            if (eucDistance(point, center) < distFromS) distFromS = eucDistance(point, center);
 
-        // return index of center with biggest distance from points and corresponding distance
-        return Collections.max(indexPointDS, (e1, e2) -> e1._2().compareTo(e2._2));
-        //._1 --> index (in the ArrayList points) of the farthest center from the set of points
-        //._2 --> distance of the farthest center from the set of points
+        return distFromS;
+    }
+
+    private static void updatePointDistance(ArrayList<Tuple2<Tuple2<Float,Float>,Float>> pointsDist, Tuple2<Float,Float> newCenter){
+        for(int i =0;i<pointsDist.size();i++)
+            if (eucDistance(pointsDist.get(i)._1, newCenter) < pointsDist.get(i)._2)  pointsDist.set(i,new Tuple2<>(pointsDist.get(i)._1,eucDistance(pointsDist.get(i)._1, newCenter)));
     }
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
-        centers.add(points.remove(0));
+
+        //Initialization of tmp list
+        ArrayList<Tuple2<Tuple2<Float,Float>,Float>> pointsDist = new ArrayList<>();
+        for(Tuple2<Float,Float> point : points) pointsDist.add(new Tuple2<>(point,Float.MAX_VALUE));
+
+        centers.add(pointsDist.remove(0)._1);
 
         for(int i=1;i<K;i++){
-            int newCenterIndex = findFarthestPoint(points,centers)._1;
-            centers.add(points.remove(newCenterIndex));
+            updatePointDistance(pointsDist,centers.get(i-1));
+            int newCenterIndex = pointsDist.indexOf(Collections.max(pointsDist, (e1,e2)-> e1._2.compareTo(e2._2)));
+            centers.add(pointsDist.remove(newCenterIndex)._1);
         }
 
         return centers;
@@ -167,8 +168,9 @@ class MethodsHW2{
 
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
-        ).cache();
-        System.out.println("Coreset size = "+ coresets.count());
+        ).persist(StorageLevel.MEMORY_AND_DISK());
+        coresets.count(); //Dummy action
+        //System.out.println("Coreset size = "+ coresets.count());
         System.out.println("Running time of MRFFT Round 1 = " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
 
@@ -181,7 +183,7 @@ class MethodsHW2{
         long stopwatch_startRound3 = System.currentTimeMillis();
         //Round 3
         float radius = points.map(
-                    (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters.value())._2
+                    (point) -> findRadius(point, kCenters.value())
                 ).reduce(Math::max);
         System.out.println("Running time of MRFFT Round 3 = " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
 
