@@ -34,13 +34,14 @@ public class G021HW2 {
         SparkConf conf = new SparkConf(true)
                 .setAppName("Outlier Detection V2")
                 .setMaster("local[*]")
-                .set("spark.locality.wait", "0s");
+                .set("spark.locality.wait", "0s")
+                .set("spark.log.level","ERROR"); //Reduce the log output
 
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
             sc.setLogLevel("WARN");
 
             //Task 3 point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
-            JavaRDD<String> rawData = sc.textFile(file_path).repartition(L).cache();
+            JavaRDD<String> rawData = sc.textFile(file_path);
 
             //Conversion of string to a pair of points and storing in a new RDD
             JavaRDD<Tuple2<Float, Float>> inputPoints = rawData.map(line -> {
@@ -49,7 +50,7 @@ public class G021HW2 {
                 float y_coord = Float.parseFloat(coordinates[1]);
 
                 return new Tuple2<>(x_coord, y_coord);
-            });
+            }).repartition(L).cache();
 
             //Task 3 point 3 - Prints the total number of points.
             long num_points = inputPoints.count();
@@ -125,7 +126,7 @@ class MethodsHW2{
         System.out.println("Number of uncertain points = " + uncertains);
     }
 
-    private static Float findRadius(Tuple2<Float,Float> point,ArrayList<Tuple2<Float,Float>> centers){
+    private static float findRadius(Tuple2<Float,Float> point,ArrayList<Tuple2<Float,Float>> centers){
         float distFromS = Float.MAX_VALUE;
 
         for(Tuple2<Float,Float> center: centers)
@@ -134,25 +135,32 @@ class MethodsHW2{
         return distFromS;
     }
 
-    private static void updatePointDistance(ArrayList<Tuple2<Tuple2<Float,Float>,Float>> pointsDist, Tuple2<Float,Float> newCenter){
-        for(int i =0;i<pointsDist.size();i++)
-            if (eucDistance(pointsDist.get(i)._1, newCenter) < pointsDist.get(i)._2)  pointsDist.set(i,new Tuple2<>(pointsDist.get(i)._1,eucDistance(pointsDist.get(i)._1, newCenter)));
+    private static int farthestPointIndex(float[] dist, ArrayList<Tuple2<Float,Float>> points, Tuple2<Float,Float> newCenter){
+        float maxVal = Float.MIN_VALUE;
+        int index = -1;
+
+        for(int i =0;i<points.size();i++) {
+            if (eucDistance(points.get(i), newCenter) < dist[i])  dist[i] = eucDistance(points.get(i), newCenter);
+
+            if(dist[i] > maxVal){
+                maxVal=dist[i];
+                index=i;
+            }
+        }
+
+        return index;
     }
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
+        float[] dist = new float[points.size()];
+        Arrays.fill(dist, Float.MAX_VALUE);
+
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
 
-        //Initialization of tmp list
-        ArrayList<Tuple2<Tuple2<Float,Float>,Float>> pointsDist = new ArrayList<>();
-        for(Tuple2<Float,Float> point : points) pointsDist.add(new Tuple2<>(point,Float.MAX_VALUE));
+        centers.add(points.get(0));
 
-        centers.add(pointsDist.remove(0)._1);
-
-        for(int i=1;i<K;i++){
-            updatePointDistance(pointsDist,centers.get(i-1));
-            int newCenterIndex = pointsDist.indexOf(Collections.max(pointsDist, (e1,e2)-> e1._2.compareTo(e2._2)));
-            centers.add(pointsDist.remove(newCenterIndex)._1);
-        }
+        for(int i=1;i<K;i++)
+            centers.add(points.get(farthestPointIndex(dist,points,centers.get(i-1))));
 
         return centers;
     }
@@ -164,13 +172,13 @@ class MethodsHW2{
         JavaRDD<Tuple2<Float,Float>> coresets = points.mapPartitions(
                 (partition) -> {
                     ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
-                    partition.forEachRemaining(partitionPoints::add);
+                    while(partition.hasNext())
+                        partitionPoints.add(partition.next());
 
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
         ).persist(StorageLevel.MEMORY_AND_DISK());
-        coresets.count(); //Dummy action
-        //System.out.println("Coreset size = "+ coresets.count());
+        coresets.count(); //Dummy action to force Spark
         System.out.println("Running time of MRFFT Round 1 = " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
 
@@ -179,12 +187,11 @@ class MethodsHW2{
         Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coresets.collect()),K));
         System.out.println("Running time of MRFFT Round 2 = " + (System.currentTimeMillis() - stopwatch_startRound2) + " ms");
 
-
         long stopwatch_startRound3 = System.currentTimeMillis();
         //Round 3
         float radius = points.map(
                     (point) -> findRadius(point, kCenters.value())
-                ).reduce(Math::max);
+                ).cache().reduce(Float::max);
         System.out.println("Running time of MRFFT Round 3 = " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
 
         return radius;
