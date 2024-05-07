@@ -34,12 +34,12 @@ public class G021HW2 {
                 .setAppName("Outlier Detection V2")
                 .setMaster("local[*]")
                 .set("spark.locality.wait", "0s");
+
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
-            //Reduce verbosity -- does not work somehow
             sc.setLogLevel("WARN");
 
             //Task 3 point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
-            JavaRDD<String> rawData = sc.textFile(file_path);
+            JavaRDD<String> rawData = sc.textFile(file_path).repartition(L).cache();
 
             //Conversion of string to a pair of points and storing in a new RDD
             JavaRDD<Tuple2<Float, Float>> inputPoints = rawData.map(line -> {
@@ -49,8 +49,6 @@ public class G021HW2 {
 
                 return new Tuple2<>(x_coord, y_coord);
             });
-
-            inputPoints.repartition(L).cache();
 
             //Task 3 point 3 - Prints the total number of points.
             long num_points = inputPoints.count();
@@ -169,7 +167,8 @@ class MethodsHW2{
 
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
-        ); //.collect(); TODO: ?? we have to wait Pietra's answer
+        ).cache();
+        System.out.println("Coreset size = "+ coresets.count());
         System.out.println("Running time of MRFFT Round 1 = " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
 
@@ -183,7 +182,7 @@ class MethodsHW2{
         //Round 3
         float radius = points.map(
                     (point) -> findFarthestPoint(new ArrayList<>(Collections.singletonList(point)), kCenters.value())._2
-                ).reduce(Float::max);
+                ).reduce(Math::max);
         System.out.println("Running time of MRFFT Round 3 = " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
 
         return radius;
