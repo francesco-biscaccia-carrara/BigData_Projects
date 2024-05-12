@@ -50,7 +50,7 @@ public class G021HW2 {
                 float y_coord = Float.parseFloat(coordinates[1]);
 
                 return new Tuple2<>(x_coord, y_coord);
-            }).repartition(L).cache();
+            }).repartition(L).persist(StorageLevel.MEMORY_AND_DISK());
 
             //Task 3 point 3 - Prints the total number of points.
             long num_points = inputPoints.count();
@@ -152,15 +152,34 @@ class MethodsHW2{
     }
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
-        float[] dist = new float[points.size()];
-        Arrays.fill(dist, Float.MAX_VALUE);
+        HashMap<Integer, Float> pointsDistances = new HashMap<>();
+        //float[] dist = new float[points.size()];
+        //Arrays.fill(dist, Float.MAX_VALUE);
 
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
 
         centers.add(points.get(0));
 
-        for(int i=1;i<K;i++)
-            centers.add(points.get(farthestPointIndex(dist,points,centers.get(i-1))));
+        for(int i=1; i<K; i++) {
+            //centers.add(points.get(farthestPointIndex(dist, points, centers.get(i - 1))));
+            Tuple2<Float, Float> currentCenter = centers.get(i-1);
+            float maxDistance = Float.MIN_VALUE;
+            int farthestPoint = -1;
+
+            for(int j=0; j<points.size(); j++) {
+                float distance = pointsDistances.getOrDefault(j, Float.MAX_VALUE);
+                if (eucDistance(points.get(j), currentCenter) < distance)
+                    pointsDistances.put(j, eucDistance(points.get(j), currentCenter));
+
+                float d = pointsDistances.get(j);
+                if (d>maxDistance) {
+                    maxDistance = d;
+                    farthestPoint = j;
+                }
+            }
+
+            centers.add(points.get(farthestPoint));
+        }
 
         return centers;
     }
