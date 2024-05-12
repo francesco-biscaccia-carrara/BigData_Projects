@@ -41,16 +41,18 @@ public class G021HW2 {
             sc.setLogLevel("WARN");
 
             //Task 3 point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
-            JavaRDD<String> rawData = sc.textFile(file_path);
+            JavaRDD<String> rawData = sc.textFile(file_path).repartition(L).persist(StorageLevel.MEMORY_AND_DISK());
 
             //Conversion of string to a pair of points and storing in a new RDD
-            JavaRDD<Tuple2<Float, Float>> inputPoints = rawData.map(line -> {
+            JavaPairRDD<Float, Float> inputPoints = rawData.flatMapToPair(line -> {
                 String[] coordinates = line.split(",");
                 float x_coord = Float.parseFloat(coordinates[0]);
                 float y_coord = Float.parseFloat(coordinates[1]);
 
-                return new Tuple2<>(x_coord, y_coord);
-            }).repartition(L).persist(StorageLevel.MEMORY_AND_DISK());
+                ArrayList<Tuple2<Float, Float>> point = new ArrayList<>();
+                point.add(new Tuple2<>(x_coord, y_coord));
+                return point.iterator();
+            });
 
             //Task 3 point 3 - Prints the total number of points.
             long num_points = inputPoints.count();
@@ -90,7 +92,7 @@ class MethodsHW2{
         return new Tuple2<>(i, j);
     }
 
-    public static void MRApproxOutliers(JavaRDD<Tuple2<Float, Float>> points, float D, int M) {
+    public static void MRApproxOutliers(JavaPairRDD<Float, Float> points, float D, int M) {
 
         JavaPairRDD<Tuple2<Integer, Integer>, Long> cellCount = points.mapToPair(
                 (pair) -> new Tuple2<>(determineCell(pair, D), 1L)
@@ -152,9 +154,9 @@ class MethodsHW2{
     }
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
-        HashMap<Integer, Float> pointsDistances = new HashMap<>();
-        //float[] dist = new float[points.size()];
-        //Arrays.fill(dist, Float.MAX_VALUE);
+        //HashMap<Integer, Float> pointsDistances = new HashMap<>();
+        float[] pointsDistances = new float[points.size()];
+        Arrays.fill(pointsDistances, Float.MAX_VALUE);
 
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
 
@@ -167,13 +169,12 @@ class MethodsHW2{
             int farthestPoint = -1;
 
             for(int j=0; j<points.size(); j++) {
-                float distance = pointsDistances.getOrDefault(j, Float.MAX_VALUE);
-                if (eucDistance(points.get(j), currentCenter) < distance)
-                    pointsDistances.put(j, eucDistance(points.get(j), currentCenter));
+                //float distance = pointsDistances.getOrDefault(j, Float.MAX_VALUE);
+                if (eucDistance(points.get(j), currentCenter) < pointsDistances[j])
+                    pointsDistances[j] = eucDistance(points.get(j), currentCenter);
 
-                float d = pointsDistances.get(j);
-                if (d>maxDistance) {
-                    maxDistance = d;
+                if (pointsDistances[j]>maxDistance) {
+                    maxDistance = pointsDistances[j];
                     farthestPoint = j;
                 }
             }
@@ -184,15 +185,16 @@ class MethodsHW2{
         return centers;
     }
 
-    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K, JavaSparkContext sc){
+    public static float MRFFT(JavaPairRDD<Float, Float> points, int K, JavaSparkContext sc){
 
         long stopwatch_startRound1 = System.currentTimeMillis();
         //Round 1
         JavaRDD<Tuple2<Float,Float>> coresets = points.mapPartitions(
                 (partition) -> {
                     ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
-                    while(partition.hasNext())
-                        partitionPoints.add(partition.next());
+                    /*while(partition.hasNext())
+                        partitionPoints.add(partition.next());*/
+                    partition.forEachRemaining(partitionPoints::add);
 
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
