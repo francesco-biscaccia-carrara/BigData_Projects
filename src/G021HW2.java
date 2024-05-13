@@ -28,30 +28,24 @@ public class G021HW2 {
         System.out.println(file_path + " M=" + M + " K=" + K + " L=" + L);
 
         //Spark setup
-
         Logger.getLogger("org").setLevel(Level.OFF);
         Logger.getLogger("akka").setLevel(Level.OFF);
         SparkConf conf = new SparkConf(true)
                 .setAppName("Outlier Detection V2")
-                .setMaster("local[*]")
-                .set("spark.locality.wait", "0s")
+                .set("spark.locality.wait","0s")
                 .set("spark.log.level","ERROR"); //Reduce the log output
 
         try (JavaSparkContext sc = new JavaSparkContext(conf)) {
-            sc.setLogLevel("WARN");
-
             //Task 3 point 2 - Reads the input points into an RDD of strings (called rawData) and transform it into an RDD of points (called inputPoints), represented as pairs of floats, subdivided into L partitions.
-            JavaRDD<String> rawData = sc.textFile(file_path).repartition(L).persist(StorageLevel.MEMORY_AND_DISK());
+            JavaRDD<String> rawData = sc.textFile(file_path).repartition(L).cache();
 
             //Conversion of string to a pair of points and storing in a new RDD
-            JavaPairRDD<Float, Float> inputPoints = rawData.flatMapToPair(line -> {
+            JavaRDD<Tuple2<Float, Float>> inputPoints = rawData.map(line -> {
                 String[] coordinates = line.split(",");
                 float x_coord = Float.parseFloat(coordinates[0]);
                 float y_coord = Float.parseFloat(coordinates[1]);
 
-                ArrayList<Tuple2<Float, Float>> point = new ArrayList<>();
-                point.add(new Tuple2<>(x_coord, y_coord));
-                return point.iterator();
+                return new Tuple2<>(x_coord,y_coord);
             });
 
             //Task 3 point 3 - Prints the total number of points.
@@ -92,7 +86,7 @@ class MethodsHW2{
         return new Tuple2<>(i, j);
     }
 
-    public static void MRApproxOutliers(JavaPairRDD<Float, Float> points, float D, int M) {
+    public static void MRApproxOutliers(JavaRDD<Tuple2<Float, Float>> points, float D, int M) {
 
         JavaPairRDD<Tuple2<Integer, Integer>, Long> cellCount = points.mapToPair(
                 (pair) -> new Tuple2<>(determineCell(pair, D), 1L)
@@ -137,24 +131,8 @@ class MethodsHW2{
         return distFromS;
     }
 
-    private static int farthestPointIndex(float[] dist, ArrayList<Tuple2<Float,Float>> points, Tuple2<Float,Float> newCenter){
-        float maxVal = Float.MIN_VALUE;
-        int index = -1;
-
-        for(int i =0;i<points.size();i++) {
-            if (eucDistance(points.get(i), newCenter) < dist[i])  dist[i] = eucDistance(points.get(i), newCenter);
-
-            if(dist[i] > maxVal){
-                maxVal=dist[i];
-                index=i;
-            }
-        }
-
-        return index;
-    }
-
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
-        //HashMap<Integer, Float> pointsDistances = new HashMap<>();
+
         float[] pointsDistances = new float[points.size()];
         Arrays.fill(pointsDistances, Float.MAX_VALUE);
 
@@ -163,13 +141,11 @@ class MethodsHW2{
         centers.add(points.get(0));
 
         for(int i=1; i<K; i++) {
-            //centers.add(points.get(farthestPointIndex(dist, points, centers.get(i - 1))));
             Tuple2<Float, Float> currentCenter = centers.get(i-1);
             float maxDistance = Float.MIN_VALUE;
             int farthestPoint = -1;
 
             for(int j=0; j<points.size(); j++) {
-                //float distance = pointsDistances.getOrDefault(j, Float.MAX_VALUE);
                 if (eucDistance(points.get(j), currentCenter) < pointsDistances[j])
                     pointsDistances[j] = eucDistance(points.get(j), currentCenter);
 
@@ -185,16 +161,15 @@ class MethodsHW2{
         return centers;
     }
 
-    public static float MRFFT(JavaPairRDD<Float, Float> points, int K, JavaSparkContext sc){
+    public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K, JavaSparkContext sc){
 
         long stopwatch_startRound1 = System.currentTimeMillis();
         //Round 1
         JavaRDD<Tuple2<Float,Float>> coresets = points.mapPartitions(
                 (partition) -> {
                     ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
-                    /*while(partition.hasNext())
-                        partitionPoints.add(partition.next());*/
-                    partition.forEachRemaining(partitionPoints::add);
+                    while(partition.hasNext())
+                        partitionPoints.add(partition.next());
 
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
@@ -212,7 +187,7 @@ class MethodsHW2{
         //Round 3
         float radius = points.map(
                     (point) -> findRadius(point, kCenters.value())
-                ).cache().reduce(Float::max);
+                ).reduce(Float::max);
         System.out.println("Running time of MRFFT Round 3 = " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
 
         return radius;
