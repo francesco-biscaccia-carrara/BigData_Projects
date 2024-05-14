@@ -108,7 +108,7 @@ class MethodsHW2{
             Tuple2<Tuple2<Integer,Integer>,Long> pair =  new Tuple2<>(e.getKey(),e.getValue());
 
             pairSizeN3N7.put(pair._1, new Tuple3<>(pair._2, 0L, 0L));
-            //Notice: this for count itself too
+            //NOTICE: this for count itself too
             for (int i = -3; i < 4; i++) {
                 for (int j = -3; j < 4; j++) {
                     if (tmpMap.get(new Tuple2<>(pair._1._1 + i, pair._1._2 + j)) != null) {
@@ -144,18 +144,19 @@ class MethodsHW2{
 
     private static ArrayList<Tuple2<Float,Float>> SequentialFFT(ArrayList<Tuple2<Float,Float>> points, int K){
 
+        //pointDistance[i] = distance between points[i] and its closest center
         float[] pointsDistances = new float[points.size()];
         Arrays.fill(pointsDistances, Float.MAX_VALUE);
 
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
-
-        centers.add(points.get(0));
+        centers.add(points.get(0)); //POLICY: pick first point as first center
 
         for(int i=1; i<K; i++) {
             Tuple2<Float, Float> currentCenter = centers.get(i-1);
             float maxDistance = Float.MIN_VALUE;
             int farthestPoint = -1;
 
+            //Recompute the closest center for each point (if necessary) and take the farthest one from the set of centers
             for(int j=0; j<points.size(); j++) {
                 if (eucDistance(points.get(j), currentCenter) < pointsDistances[j])
                     pointsDistances[j] = eucDistance(points.get(j), currentCenter);
@@ -165,7 +166,6 @@ class MethodsHW2{
                     farthestPoint = j;
                 }
             }
-
             centers.add(points.get(farthestPoint));
         }
 
@@ -175,7 +175,9 @@ class MethodsHW2{
     public static float MRFFT(JavaRDD<Tuple2<Float, Float>> points, int K, JavaSparkContext sc){
 
         long stopwatch_startRound1 = System.currentTimeMillis();
-        //Round 1
+        /*  Round 1
+           - Map Phase: partition (subset of RDD points) -> emit (k points ('centers')) by applying SequentialFFT
+        */
         JavaRDD<Tuple2<Float,Float>> coresets = points.mapPartitions(
                 (partition) -> {
                     ArrayList<Tuple2<Float,Float>> partitionPoints = new ArrayList<>();
@@ -185,20 +187,28 @@ class MethodsHW2{
                     return SequentialFFT(partitionPoints,K).iterator();
                 }
         ).persist(StorageLevel.MEMORY_AND_DISK());
-        coresets.count(); //Dummy action to force Spark
+
+        coresets.count(); //NOTICE: Dummy action to trigger Spark
         System.out.println("Running time of MRFFT Round 1 = " + (System.currentTimeMillis() - stopwatch_startRound1) + " ms");
 
 
         long stopwatch_startRound2= System.currentTimeMillis();
-        //Round 2
+        /*  Round 2
+           - Reduce Phase: gather the k centers from each partition in a coreset and apply SequentialFFT on such coreset
+        */
         Broadcast<ArrayList<Tuple2<Float, Float>>> kCenters = sc.broadcast(SequentialFFT(new ArrayList<>(coresets.collect()),K));
+
         System.out.println("Running time of MRFFT Round 2 = " + (System.currentTimeMillis() - stopwatch_startRound2) + " ms");
 
         long stopwatch_startRound3 = System.currentTimeMillis();
-        //Round 3
+        /*  Round 3
+           - Map Phase: point (x,y) -> emit min distance between point and the set of centers kCenters
+           - Reduce Phase: take the max value (the radius of the clustering)
+        */
         float radius = points.map(
                     (point) -> findRadius(point, kCenters.value())
                 ).reduce(Float::max);
+
         System.out.println("Running time of MRFFT Round 3 = " + (System.currentTimeMillis() - stopwatch_startRound3) + " ms");
 
         return radius;
