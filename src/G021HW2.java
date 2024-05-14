@@ -149,18 +149,19 @@ class MethodsHW2{
         Arrays.fill(pointsDistances, Float.MAX_VALUE);
 
         ArrayList<Tuple2<Float,Float>> centers = new ArrayList<>();
-        centers.add(points.get(0)); //POLICY: pick first point as first center
+        centers.add(points.get(0)); //POLICY: pick first point as starting center
 
         for(int i=1; i<K; i++) {
             Tuple2<Float, Float> currentCenter = centers.get(i-1);
             float maxDistance = Float.MIN_VALUE;
             int farthestPoint = -1;
 
-            //Recompute the closest center for each point (if necessary) and take the farthest one from the set of centers
             for(int j=0; j<points.size(); j++) {
+                // check if current center is closest center to each point and, if so, update pointsDistances
                 if (eucDistance(points.get(j), currentCenter) < pointsDistances[j])
                     pointsDistances[j] = eucDistance(points.get(j), currentCenter);
 
+                // take farthest point from the set of centers considered so far
                 if (pointsDistances[j]>maxDistance) {
                     maxDistance = pointsDistances[j];
                     farthestPoint = j;
