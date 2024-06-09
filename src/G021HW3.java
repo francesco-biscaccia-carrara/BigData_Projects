@@ -67,9 +67,8 @@ public class G021HW3 {
         sc.stop(false, false);
         //System.out.println("Streaming engine stopped");
 
-        //HW output
-        HashMap<Long,Long> trueFrequentItems = MethodsHW3.printInfoTrueFreqItems(trueFrequentItemsMap,phi,streamLength[0]);
-        //MethodsHW3.printInfoReservoirSample(reservoirSample,trueFrequentItems);
+        //HW outputSHashMap<Long,Long> trueFrequentItems = MethodsHW3.printInfoTrueFreqItems(trueFrequentItemsMap,phi,n);
+        //MethodsHW3.printInfoReservoirSample(reservoirSampleList,trueFrequentItems);
         //MethodsHW3.printInfoStickySampling(stickySamplingMap,trueFrequentItems,phi,epsilon,n);
     }
 }
@@ -90,7 +89,7 @@ class MethodsHW3 {
         for(Long item : streamItems) {
             if(reservoirSample.size() < m)  reservoirSample.add(item);
             else
-                if(Math.random() < (double) m/t) reservoirSample.set((int) (Math.random() * reservoirSample.size()),item);
+                if(Math.random() <= (double) m/t) reservoirSample.set((int) (Math.random() * reservoirSample.size()),item);
             t++;
         }
     }
@@ -100,18 +99,17 @@ class MethodsHW3 {
         for(Long item:streamItems){
             if(stickySamplingMap.containsKey(item)) stickySamplingMap.replace(item,stickySamplingMap.get(item)+1L);
             else
-                if(Math.random() < (double) r/n) stickySamplingMap.put(item,1L);
+                if(Math.random() <= (double) r/n) stickySamplingMap.put(item,1L);
         }
-    }
-    */
+    }*/
 
-    public static HashMap<Long,Long> printInfoTrueFreqItems(HashMap<Long,Long> trueFrequentItemsMap, float phi, long streamLentgh){
+    public static HashMap<Long,Long> printInfoTrueFreqItems(HashMap<Long,Long> trueFrequentItemsMap, float phi, int n){
         System.out.println("EXACT ALGORITHM");
         System.out.println("Number of items in the data structure = "+trueFrequentItemsMap.keySet().size());
 
         HashMap<Long,Long>  trueFreqItems = new HashMap<>();
         for(Map.Entry<Long, Long> pair : trueFrequentItemsMap.entrySet())
-            if(pair.getValue() >= phi*streamLentgh) trueFreqItems.put(pair.getKey(),pair.getValue());
+            if(pair.getValue() >= phi*n) trueFreqItems.put(pair.getKey(),pair.getValue());
         System.out.println("Number of true frequent items = " + trueFreqItems.keySet().size());
 
         ArrayList<Long> sortedItems = new ArrayList<>(trueFreqItems.keySet());
