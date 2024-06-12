@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 public class G021HW3 {
+
     public static void main(String[] args) throws Exception{
 
         if (args.length != 5) throw new IllegalArgumentException("USAGE: n phi epsilon delta portExp");
@@ -52,56 +53,58 @@ public class G021HW3 {
                         MethodsHW3.reservoirSampleUpdate(batchItems,reservoirSampleList,streamLength[0] - batchSize, (int) Math.ceil(1/phi));
                         MethodsHW3.stickySamplingUpdate(batchItems,stickySamplingMap,(float) Math.log(1/(delta*phi))/epsilon,n);
 
-                        //if (batchSize > 0) System.out.println("Batch size at time [" + time + "] is: " + batchSize); //DEBUG ONLY
-
                         if (streamLength[0] >= n) stoppingSemaphore.release();
                     }
                 });
 
-        //System.out.println("Starting streaming engine");
         sc.start();
-        //System.out.println("Waiting for shutdown condition");
         stoppingSemaphore.acquire();
-        //System.out.println("Stopping the streaming engine");
 
         sc.stop(false, false);
-        //System.out.println("Streaming engine stopped");
 
         HashMap<Long,Long> trueFrequentItems = MethodsHW3.printInfoTrueFreqItems(trueFrequentItemsMap,phi,n);
         MethodsHW3.printInfoReservoirSample(reservoirSampleList,trueFrequentItems);
         MethodsHW3.printInfoStickySampling(stickySamplingMap,trueFrequentItems,phi,epsilon,n);
+
     }
+
 }
 
 class MethodsHW3 {
-    public static void trueFrequentItemsUpdate(List<Long> streamItems,HashMap<Long,Long> trueFrequentItemsMap){
-        for(Long item : streamItems) {
-            if (!trueFrequentItemsMap.containsKey(item))
-                trueFrequentItemsMap.put(item, 1L);
-            else
-                trueFrequentItemsMap.replace(item, trueFrequentItemsMap.get(item) + 1L);
+
+    public static void trueFrequentItemsUpdate(List<Long> streamItems, HashMap<Long,Long> trueFrequentItemsMap){
+
+        for (Long item : streamItems) {
+            if (!trueFrequentItemsMap.containsKey(item)) trueFrequentItemsMap.put(item, 1L);
+            else trueFrequentItemsMap.replace(item, trueFrequentItemsMap.get(item) + 1L);
         }
+
     }
 
-    public static void reservoirSampleUpdate(List<Long> streamItems, ArrayList<Long> reservoirSample, long startIndex,int m){
+    public static void reservoirSampleUpdate(List<Long> streamItems, ArrayList<Long> reservoirSample, long startIndex, int m) {
+
         long t = startIndex;
-        for(Long item : streamItems) {
-            if(reservoirSample.size() < m)  reservoirSample.add(item);
+        for (Long item : streamItems) {
+            if (reservoirSample.size() < m) reservoirSample.add(item);
             else
-                if(Math.random() <= (double) m/t) reservoirSample.set((int) (Math.random() * reservoirSample.size()),item);
+                if (Math.random() <= (double) m/t) reservoirSample.set((int) (Math.random() * reservoirSample.size()),item);
             t++;
         }
+
     }
 
-    public static void stickySamplingUpdate(List<Long> streamItems,HashMap<Long,Long> stickySamplingMap,float r, int n){
-        for(Long item:streamItems){
-            if(stickySamplingMap.containsKey(item)) stickySamplingMap.replace(item,stickySamplingMap.get(item)+1L);
+    public static void stickySamplingUpdate(List<Long> streamItems, HashMap<Long,Long> stickySamplingMap, float r, int n) {
+
+        for (Long item:streamItems) {
+            if (stickySamplingMap.containsKey(item)) stickySamplingMap.replace(item,stickySamplingMap.get(item)+1L);
             else
-                if(Math.random() <= (double) r/n) stickySamplingMap.put(item,1L);
+                if (Math.random() <= (double) r/n) stickySamplingMap.put(item,1L);
         }
+
     }
 
     public static HashMap<Long,Long> printInfoTrueFreqItems(HashMap<Long,Long> trueFrequentItemsMap, float phi, int n){
+
         System.out.println("EXACT ALGORITHM");
         System.out.println("Number of items in the data structure = "+trueFrequentItemsMap.keySet().size());
 
@@ -116,34 +119,39 @@ class MethodsHW3 {
         for(Long item:sortedItems) System.out.println(item);
 
         return trueFreqItems;
+
     }
 
-    public static void printInfoReservoirSample(ArrayList<Long> reservoirSample, HashMap<Long,Long> trueFreqItems){
+    public static void printInfoReservoirSample(ArrayList<Long> reservoirSample, HashMap<Long,Long> trueFreqItems) {
+
         System.out.println("RESERVOIR SAMPLING");
         System.out.println("Size m of the sample = "+reservoirSample.size());
 
         HashMap<Long,Integer> reservoirSampleMap = new HashMap<>();
-        for(Long item: reservoirSample) reservoirSampleMap.put(item,1);
+        for (Long item: reservoirSample) reservoirSampleMap.put(item,1);
         System.out.println("Number of estimated frequent items = " +reservoirSampleMap.keySet().size());
 
         ArrayList<Long> sortedItems = new ArrayList<>(reservoirSampleMap.keySet());
         sortedItems.sort(Long::compareTo);
         System.out.println("Estimated frequent items:");
-        for(Long item:sortedItems) System.out.println(item +(trueFreqItems.containsKey(item) ?" +":" -"));
+        for (Long item:sortedItems) System.out.println(item + (trueFreqItems.containsKey(item) ? " +" : " -"));
+
     }
 
-    public static void printInfoStickySampling(HashMap<Long,Long> stickySamplingMap, HashMap<Long,Long> trueFreqItems,float phi,float epsilon,int n){
+    public static void printInfoStickySampling(HashMap<Long,Long> stickySamplingMap, HashMap<Long,Long> trueFreqItems, float phi, float epsilon, int n){
+
         System.out.println("STICKY SAMPLING");
         System.out.println("Number of items in the Hash Table = "+stickySamplingMap.keySet().size());
 
         ArrayList<Long> stickySamplingItems = new ArrayList<>();
-        for(Map.Entry<Long, Long> pair : stickySamplingMap.entrySet())
-            if(pair.getValue() >= (long) ((phi - epsilon)*n)) stickySamplingItems.add(pair.getKey());
+        for (Map.Entry<Long, Long> pair : stickySamplingMap.entrySet())
+            if (pair.getValue() >= (long) ((phi - epsilon)*n)) stickySamplingItems.add(pair.getKey());
         System.out.println("Number of estimated frequent items = " +stickySamplingItems.size());
 
         stickySamplingItems.sort(Long::compareTo);
         System.out.println("Estimated frequent items:");
-        for(Long item: stickySamplingItems) System.out.println(item +(trueFreqItems.containsKey(item) ?" +":" -"));
+        for (Long item: stickySamplingItems) System.out.println(item + (trueFreqItems.containsKey(item) ? " +" : " -"));
+
     }
 
 }
