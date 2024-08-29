@@ -14,7 +14,7 @@ The purpose of the first homework is to get acquainted with Spark and with its u
 - $R_3(C_p)$ = 3x3 grid of cells with $C_p$ in the middle.
 - $R_7(C_p)$ = 7x7 grid of cells with $C_p$ in the middle.
 
-![Cell diagram](https://esami.elearning.unipd.it/pluginfile.php/464795/mod_page/content/56/Cell.jpg)
+![Cell diagram](Cell.jpg)
 
 Define also:
 
