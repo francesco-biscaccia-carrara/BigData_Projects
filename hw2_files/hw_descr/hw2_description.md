@@ -23,11 +23,11 @@ In this homework, you will run a Spark program on the CloudVeneto cluster. The p
 - Executes MRFFT with parameters inputPoints and $K$, prints the returned radius and stores it into a float $D$ (**UPDATED**)
 - Executes MRApproxOutliers, modified as described above, with parameters inputPoints, $D, M$ and prints its running time. (**UPDATED**)
 
-**IMPORTANT:** *Make sure that your program that receives the command-line arguments in the order specified above, and that its output complies with the format given in [**this file**](https://esami.elearning.unipd.it/pluginfile.php/463563/mod_page/content/37/Output%20uber-large.csv%203%20100%2016%20%28with%2016%20executors%29.txt).*
+**IMPORTANT:** *Make sure that your program that receives the command-line arguments in the order specified above, and that its output complies with the format given in [**this file**](output_uber-large_3_100_16.txt).*
 
 4) Test and debug your program in local mode on your PC to make sure that it runs correctly. The program must be stand-alone in the sense that it should run without requiring additional files.
 
-5) Test your program on the cluster using the datasets which have been preloaded in the HDFS available in the cluster. Use various configurations of parameters and, in particular, fill the table given in [**this word file**](https://esami.elearning.unipd.it/pluginfile.php/463563/mod_page/content/37/TableHW2.docx?time=1714836934242) with the results of the experiments specified in the file.
+5) Test your program on the cluster using the datasets which have been preloaded in the HDFS available in the cluster. Use various configurations of parameters and, in particular, fill the table given in [**this word file**](../TableHW2.docx) with the results of the experiments specified in the file.
 
 **WHEN USING THE CLUSTER, YOU MUST STRICTLY FOLLOW THESE RULES:**
 
