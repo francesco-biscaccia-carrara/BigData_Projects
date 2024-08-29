@@ -3,7 +3,7 @@
 ![Spark](https://img.shields.io/badge/Apache_Spark-FFFFFF?style=for-the-badge&logo=apachespark&logoColor=#E35A16)
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=java&logoColor=white)
 
-Welcome to my Big Data Computing course repository! This collection showcases the assignments completed for INP7079233 during the 2023-2024 academic year, under the guidance of Professors Pietracaprina and Silvestri.
+Welcome to my Big Data Computing course repository! This collection showcases the assignments completed for INP7079233 Big Data Computing during the 2023-2024 academic year, under the guidance of Professors Pietracaprina and Silvestri, at University of Padova.
 
 ## 📚 Course Overview
 
