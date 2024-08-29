@@ -1,4 +1,4 @@
-# 🚀 Big Data Computing Course Assignments
+# ☁️ Big Data Computing Course Assignments
 
 ![Spark](https://img.shields.io/badge/Apache_Spark-FFFFFF?style=for-the-badge&logo=apachespark&logoColor=#E35A16)
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=java&logoColor=white)
