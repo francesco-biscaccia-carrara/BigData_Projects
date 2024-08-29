@@ -27,7 +27,7 @@ This course dives deep into the world of big data, exploring advanced techniques
 - 🚀 Approximate algorithm using Spark RDDs
 - 📈 Performance and accuracy analysis
 
-[🔗 Detailed Assignment Description](hw1_files/hw1_description.md)
+[🔗 Detailed Assignment Description](hw1_files/hw_descr/hw1_description.md)
 
 ### 🌟 Homework 2: K-Center Clustering for Outlier Detection
 
@@ -39,7 +39,7 @@ This course dives deep into the world of big data, exploring advanced techniques
 - 🌐 Develop MapReduce FFT (MRFFT)
 - ☁️ Execute experiments on CloudVeneto cluster
 
-[🔗 Detailed Assignment Description](hw2_files/hw2_description.md)
+[🔗 Detailed Assignment Description](hw2_files/hw_descr/hw2_description.md)
 
 ### 🌊 Homework 3: Frequent Item Detection in Data Streams
 
@@ -51,7 +51,7 @@ This course dives deep into the world of big data, exploring advanced techniques
 - 🔄 Real-time stream processing
 - 📊 Comparative analysis of sampling methods
 
-[🔗 Detailed Assignment Description](hw3_files/hw3_description.md)
+[🔗 Detailed Assignment Description](hw3_files/hw_descr/hw3_description.md)
 
 ## 🛠️ Technologies & Tools
 
