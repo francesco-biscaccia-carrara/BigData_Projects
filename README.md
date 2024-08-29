@@ -66,6 +66,11 @@ This course offered an immersive journey into the realm of big data, providing:
 - Deep understanding of distributed computing principles
 - Practical skills in real-time data analysis and processing
 
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ---
 
 💡 Feel free to explore the code and documentation!
