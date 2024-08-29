@@ -61,18 +61,18 @@ The program should print:
   - The number of estimated frequent items (i.e., the items considered frequent by Sticky sampling)
   - The estimated frequent items, in increasing order (one item per line). Next to each item print a "+" if the item is a true frequent one, and "-" otherwise.
 
-[These files](https://esami.elearning.unipd.it/pluginfile.php/463565/mod_page/content/59/output_examples.zip) show how to format your output. Make sure that your program complies with the input and output format.
+[These files](/output_examples/) show how to format your output. Make sure that your program complies with the input and output format.
 
-**The program that you submit should run without requiring additional files.** Test your program on your local or virtual machine using various configurations of parameters, and **report your results using the table given in [this word file](https://esami.elearning.unipd.it/pluginfile.php/463565/mod_page/content/59/TableHW3.docx?time=1717677474692).**
+**The program that you submit should run without requiring additional files.** Test your program on your local or virtual machine using various configurations of parameters, and **report your results using the table given in [this word file](../TableHW3.docx).**
 
 ### PORTS IN algo.dei.unipd.it
 
 The ports from 8886 to 8889 of algo.dei.unipd.it generate four streams of 32-bit integers:
 
-- **8887**: it generates a stream where a few elements are very frequent, while all the remaining are randomly selected in the 32-bit integer domain.
-- **8889**: it generates a stream where a few elements are very frequent, some elements are moderately frequent, and all the remaining are randomly selected in the 32-bit integer domain.
-- **8886**: it is the "deterministic" version of the stream 8887, meaning that it generates the exact same stream every time you connect to this port. It should be used to test your algorithm.
-- **8888**: it is the "deterministic" version of the stream 8889, meaning that it generates the exact same stream every time you connect to this port. It should be used to test your algorithm.
+- 8887: it generates a stream where a few elements are very frequent, while all the remaining are randomly selected in the 32-bit integer domain.
+- 8889: it generates a stream where a few elements are very frequent, some elements are moderately frequent, and all the remaining are randomly selected in the 32-bit integer domain.
+- 8886: it is the "deterministic" version of the stream 8887, meaning that it generates the exact same stream every time you connect to this port. It should be used to test your algorithm.
+- 8888: it is the "deterministic" version of the stream 8889, meaning that it generates the exact same stream every time you connect to this port. It should be used to test your algorithm.
 
 ### SUBMISSION INSTRUCTIONS
 
