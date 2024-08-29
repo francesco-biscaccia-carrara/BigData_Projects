@@ -37,13 +37,13 @@ You must write a program **GxxxHW3.java** (for Java users) or **GxxxHW3.py** (fo
 4. **A float** *delta*: the confidence parameter in $(0,1)$
 5. **An integer** *portExp*: the port number
 
-The program must process the items in the batches up to and including the first batch which contains the `n`-th item of the stream `Σ` emitted by **machine algo.dei.unipd.it** at port *portExp*, and it must compute the following information **relative to the first *n* processed items** (*all items after the n-th one should be ignored*):
+The program must process the items in the batches up to and including the first batch which contains the $n$-th item of the stream $\Sigma$ emitted by **machine algo.dei.unipd.it** at port *portExp*, and it must compute the following information **relative to the first *n* processed items** (*all items after the n-th one should be ignored*):
 
 - The true frequent items with respect to the threshold *phi*
 - An *m*-**sample** of $\Sigma$ using **Reservoir Sampling**, with $ m = \ceil{1/phi}$
 - The **epsilon-Approximate Frequent Items** computed using **Sticky Sampling** with confidence parameter *delta*
 
-If some action must be performed with a probability $p$, generate a random number in $x \in \[0,1\]$ and perform the action only if  $ x \le p$. Use the random generators provided by Java and Python.
+If some action must be performed with a probability $p$, generate a random number in $x \in \[0,1\]$ and perform the action only if  $x\le p$. Use the random generators provided by Java and Python.
 
 The program should print:
 
