@@ -61,7 +61,7 @@ The program should print:
   - The number of estimated frequent items (i.e., the items considered frequent by Sticky sampling)
   - The estimated frequent items, in increasing order (one item per line). Next to each item print a "+" if the item is a true frequent one, and "-" otherwise.
 
-[These files](/output_examples/) show how to format your output. Make sure that your program complies with the input and output format.
+[These files](./output_examples/) show how to format your output. Make sure that your program complies with the input and output format.
 
 **The program that you submit should run without requiring additional files.** Test your program on your local or virtual machine using various configurations of parameters, and **report your results using the table given in [this word file](../TableHW3.docx).**
 
