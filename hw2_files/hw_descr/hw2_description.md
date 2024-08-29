@@ -1,4 +1,6 @@
-# Assignment of Homework 2
+# INP7079233 - BIG DATA COMPUTING 2023-2024 (prof. Pietracaprina and Silvestri)
+
+## Assignment of Homework 2
 
 In this homework, you will run a Spark program on the CloudVeneto cluster. The program will test a modified version of the approximation strategy for outlier detection developed in Homework 1 where the distance parameter $D$ is not provided in input by the user, but is set equal to the *radius* of a k-center clustering (for a suitable number $K$ of clusters), that is, the maximum distance of a point from its closest center. In other words, the role of the input parameter $D$ is replaced by $K$. This has two advantages: (1) a better control on the number of non-empty cells; and (2) the potential for a sharper analysis. The purpose of the homework is to assess the effectiveness of this strategy and to test the scalability of a MapReduce implementation when run on large datasets.
 
