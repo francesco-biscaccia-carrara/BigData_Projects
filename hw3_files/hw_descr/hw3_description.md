@@ -1,3 +1,5 @@
+# INP7079233 - BIG DATA COMPUTING 2023-2024 (prof. Pietracaprina and Silvestri)
+
 ## Assignment of Homework 3
 
 In this homework, you will use the Spark Streaming API to devise a program that processes a stream of items and compares the effectiveness of two methods to identify frequent items: (1) The method based on reservoir sampling; and (2) The method based on sticky sampling. Both methods have been discussed in class.
