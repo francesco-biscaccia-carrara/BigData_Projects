@@ -59,7 +59,7 @@ The homework aims at comparing the exact and approximate algorithms in terms of 
   - Executes MRApproxOutliers with parameters inputPoints, $D, M$ and $K$. The execution will print the information specified above. 
   - Prints MRApproxOutliers' running time.
 
-In moodle you find some files (e.g. [output_uber10k_0.02_10_5_2.txt](https://esami.elearning.unipd.it/pluginfile.php/464795/mod_page/content/56/output_uber10k_0.02_10_5_2.txt)) showing you how to format your output. Make sure that your program complies with this format.
+In moodle you find some files (e.g. [output_uber10k_0.02_10_5_2.txt](output_uber10k_0.02_10_5_2.txt)) showing you how to format your output. Make sure that your program complies with this format.
 
 **4)** **Test your program** using the datasets that we provide in the same section as this page, together with the outputs of our program on the datasets.
 
