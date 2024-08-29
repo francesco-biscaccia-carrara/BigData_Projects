@@ -1,12 +1,6 @@
 # INP7079233 - BIG DATA COMPUTING 2023-2024 (prof. Pietracaprina and Silvestri)
 
-1. [Home](https://esami.elearning.unipd.it/)
-2. My courses
-3. [2023-IN2547-003PD-2023-INP7079233-G2GR2](https://esami.elearning.unipd.it/course/view.php?id=5621 "INP7079233 - BIG DATA COMPUTING 2023-2024 (prof. Pietracaprina and Silvestri)")
-4. [Homework 1](https://esami.elearning.unipd.it/course/view.php?id=5621#section-2)
-5. [Assignment of Homework 1 (deadline: April 12)](https://esami.elearning.unipd.it/mod/page/view.php?id=68250 "Page")
-
-## Assignment of Homework 1 (deadline: April 12)
+## Assignment of Homework 1
 
 The purpose of the first homework is to get acquainted with Spark and with its use to implement MapReduce algorithms. In preparation for the homework, you must set up your environment following the instructions given in Moodle Exam, in the same section as this page. After the set up is complete, test it using the WordCountExample program (Java or Python), and familiarize with the Spark methods it uses. The Introduction to Programming in Spark may turn out useful to this purpose.
 
